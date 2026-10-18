@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="440" viewBox="0 0 1400 440" role="img" aria-labelledby="title desc">
+  <title id="title">Balance Maze — Cosmic Voyage</title>
+  <desc id="desc">A vintage space-age wooden tilt maze with a chrome ball, brass rails and luminous wormholes against a minimal midnight sky.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#111e32"/><stop offset=".56" stop-color="#091424"/><stop offset="1" stop-color="#070b16"/>
+    </linearGradient>
+    <radialGradient id="nebula">
+      <stop stop-color="#435a82" stop-opacity=".34"/><stop offset="1" stop-color="#091424" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2=".8">
+      <stop stop-color="#fae3a8"/><stop offset=".25" stop-color="#b88842"/><stop offset=".5" stop-color="#e6c080"/><stop offset=".78" stop-color="#7d5329"/><stop offset="1" stop-color="#d2a566"/>
+    </linearGradient>
+    <linearGradient id="walnut" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#653923"/><stop offset=".48" stop-color="#2c1a18"/><stop offset="1" stop-color="#6e482b"/>
+    </linearGradient>
+    <radialGradient id="marble" cx=".3" cy=".25" r=".85">
+      <stop stop-color="#fffaf0"/><stop offset=".21" stop-color="#becddb"/><stop offset=".53" stop-color="#5b809c"/><stop offset=".78" stop-color="#263a55"/><stop offset="1" stop-color="#111a2c"/>
+    </radialGradient>
+    <radialGradient id="planet" cx=".3" cy=".28" r=".85">
+      <stop stop-color="#f8d4a0"/><stop offset=".45" stop-color="#d17f60"/><stop offset="1" stop-color="#6e4259"/>
+    </radialGradient>
+    <linearGradient id="board" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#203e50"/><stop offset=".49" stop-color="#152a41"/><stop offset="1" stop-color="#111b32"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-30%" width="150%" height="170%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="softglow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <pattern id="stars" width="116" height="96" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="23" r="1.2" fill="#d6d9d5" opacity=".43"/>
+      <circle cx="96" cy="61" r=".8" fill="#a8c9d3" opacity=".54"/>
+      <circle cx="48" cy="84" r=".75" fill="#f3d7a2" opacity=".53"/>
+    </pattern>
+  </defs>
+  <rect width="1400" height="440" rx="20" fill="url(#sky)"/>
+  <rect width="1400" height="440" rx="20" fill="url(#stars)"/>
+  <ellipse cx="1150" cy="186" rx="460" ry="330" fill="url(#nebula)"/>
+  <g fill="none" stroke="#d6a765" stroke-opacity=".16" stroke-width="1.4">
+    <ellipse cx="1120" cy="210" rx="341" ry="116" transform="rotate(-21 1120 210)"/>
+    <ellipse cx="1102" cy="210" rx="310" ry="180" transform="rotate(22 1102 210)"/>
+  </g>
+  <g fill="none" stroke="#e3b77a" stroke-width="1.1" opacity=".24">
+    <path d="M56 44h1288M56 397h1288"/>
+  </g>
+  <g fill="#e2b47a" opacity=".7">
+    <path d="M92 71v18M83 80h18" stroke="#e2b47a" stroke-width="1.8"/>
+    <path d="M686 358v12M680 364h12" stroke="#e2b47a" stroke-width="1.4"/>
+    <circle cx="686" cy="124" r="2.4"/>
+    <circle cx="1340" cy="365" r="1.9"/>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="92" y="121" fill="#b4c9d9" font-size="17" font-weight="700" letter-spacing="6">THE PHYSICAL SPACE ADVENTURE</text>
+    <text x="85" y="218" fill="#f5e2b8" font-size="83" font-weight="800" letter-spacing="1.1">BALANCE</text>
+    <text x="88" y="294" fill="#e2ae69" font-size="82" font-weight="800" letter-spacing="5.8">MAZE</text>
+    <rect x="92" y="322" width="397" height="1" fill="#b78d5c" opacity=".65"/>
+    <text x="92" y="351" fill="#e7d9c0" font-size="21" font-weight="400" letter-spacing="1">A steel marble. A cosmic maze.</text>
+    <text x="92" y="382" fill="#9ec6df" font-size="19" letter-spacing="1.2">YOUR HANDS ARE THE CONTROLLER.</text>
+  </g>
+
+  <g transform="translate(1073 220) rotate(-12)">
+    <rect x="-175" y="-150" width="354" height="313" rx="24" fill="#000" opacity=".55" filter="url(#shadow)" transform="translate(8 14)"/>
+    <rect x="-187" y="-161" width="374" height="322" rx="30" fill="url(#walnut)" stroke="#b17d4b" stroke-width="7"/>
+    <rect x="-168" y="-142" width="336" height="284" rx="16" fill="#130d10" stroke="url(#brass)" stroke-width="6"/>
+    <rect x="-157" y="-130" width="314" height="260" rx="9" fill="url(#board)"/>
+    <g stroke="#b9a87a" fill="none" opacity=".22">
+      <ellipse rx="133" ry="56" transform="rotate(-20)"/>
+      <ellipse rx="116" ry="88" transform="rotate(28)"/>
+    </g>
+    <g fill="#f1d4a0" opacity=".68">
+      <circle cx="-127" cy="-109" r="1.8"/><circle cx="-94" cy="39" r="1.3"/>
+      <circle cx="115" cy="-75" r="2"/><circle cx="20" cy="104" r="1.9"/>
+      <circle cx="138" cy="35" r="1.4"/><circle cx="-40" cy="-95" r="1.2"/>
+      <circle cx="106" cy="102" r="1.3"/>
+    </g>
+    <g stroke="url(#brass)" stroke-width="9" stroke-linecap="round" fill="none">
+      <path d="M-140 -45H-49V-76H18"/>
+      <path d="M-99 52H-33V9H45"/>
+      <path d="M66 -119V-39H125"/>
+      <path d="M78 36V98H132"/>
+      <path d="M-123 103V77H-70"/>
+    </g>
+    <g fill="#02030a" stroke="#d4a369" stroke-width="7">
+      <circle cx="-95" cy="-2" r="23"/><circle cx="102" cy="67" r="21"/>
+      <circle cx="13" cy="-53" r="18"/>
+    </g>
+    <g fill="none" stroke-width="4">
+      <circle cx="-95" cy="-2" r="32" stroke="#8060b0" opacity=".75"/>
+      <circle cx="102" cy="67" r="30" stroke="#d08763" opacity=".64"/>
+      <circle cx="13" cy="-53" r="26" stroke="#7796c2" opacity=".6"/>
+    </g>
+    <g>
+      <circle cx="-124" cy="104" r="31" fill="none" stroke="#b56fee" stroke-width="6" opacity=".7" filter="url(#softglow)"/>
+      <circle cx="-124" cy="104" r="28" fill="none" stroke="#bb86ed" stroke-width="5"/>
+      <circle cx="108" cy="-93" r="28" fill="none" stroke="#64cce9" stroke-width="5"/>
+      <circle cx="108" cy="-93" r="32" fill="none" stroke="#64cce9" stroke-width="5" opacity=".4" filter="url(#softglow)"/>
+    </g>
+    <g transform="translate(-19 -5)">
+      <ellipse cy="18" rx="23" ry="8" fill="#000" opacity=".24"/>
+      <circle r="22" fill="url(#marble)" stroke="#d5e0e4" stroke-width="2"/>
+      <circle cx="-8" cy="-9" r="6" fill="#fff" opacity=".78"/>
+    </g>
+    <g transform="translate(115 -23)">
+      <circle r="16" fill="url(#planet)"/>
+      <ellipse rx="27" ry="8" fill="none" stroke="#e7be7f" stroke-width="4" transform="rotate(24)"/>
+    </g>
+    <g fill="url(#brass)">
+      <circle cx="0" cy="-155" r="11"/><circle cx="0" cy="155" r="11"/>
+      <circle cx="-181" cy="0" r="11"/><circle cx="181" cy="0" r="11"/>
+    </g>
+    <g fill="#130e15" stroke="#f3cc8a" stroke-width="2">
+      <circle cx="-181" cy="0" r="5"/><circle cx="181" cy="0" r="5"/>
+      <circle cx="0" cy="-155" r="5"/><circle cx="0" cy="155" r="5"/>
+    </g>
+    <g font-family="Arial, Helvetica, sans-serif">
+      <text x="-124" y="-112" fill="#eed5a9" font-size="13" letter-spacing="3">SPACE MAZE</text>
+      <text x="-103" y="126" fill="#a7d9e4" font-size="10" letter-spacing="1">COSMIC VOYAGE</text>
+    </g>
+  </g>
+  <rect x="1" y="1" width="1398" height="438" rx="20" fill="none" stroke="#bc8e55" stroke-opacity=".42" stroke-width="2"/>
+</svg>
