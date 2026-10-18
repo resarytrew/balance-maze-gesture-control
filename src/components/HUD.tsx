@@ -16,9 +16,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import type { MissionState } from '../game/mission.ts';
 import type { GameStatus, LevelConfig, TiltState } from '../game/types.ts';
 
 interface HUDProps {
+  missionMode: boolean;
+  missionState: MissionState;
+  onStartMission: () => void;
   presentationMode?: boolean;
   level: LevelConfig;
   allLevels: LevelConfig[];
@@ -39,6 +43,9 @@ interface HUDProps {
 }
 
 export const HUD: React.FC<HUDProps> = ({
+  missionMode,
+  missionState,
+  onStartMission,
   presentationMode = false,
   level,
   allLevels,
@@ -205,6 +212,19 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       )}
 
+      {!presentationMode && <div style={{position:'fixed',top:84,left:18,zIndex:35,maxWidth:300,padding:12,border:'1px solid rgba(184,146,77,.62)',borderRadius:16,background:'rgba(17,21,33,.91)',color:'#fbe6ba',boxShadow:'0 8px 36px #0008'}}>
+        {!missionMode ? (
+          <button type="button" onClick={onStartMission} style={{fontWeight:700,fontSize:13,letterSpacing:'.04em'}}>🚀 НАЧАТЬ КОСМИЧЕСКУЮ МИССИЮ</button>
+        ) : (
+          <div aria-live="polite">
+            <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>🚀 МИССИЯ: СПАСЕНИЕ НА САТУРНЕ</div>
+            <div style={{fontSize:12,color:'#c9d6ed'}}>Маяки: {missionState.beacons}/2 · Порталы: {missionState.hops}</div>
+            <div style={{fontSize:12,color:'#d9c9a9',marginTop:5}}>{missionState.beacons === 2 ? 'Маяки активированы! Доберитесь до станции.' : 'Сначала зажгите оба маяка, затем найдите станцию.'}</div>
+            <div style={{fontSize:11,color:'#a5b5d2',marginTop:6}}>Фиолетовые кольца — телепорты. Чёрные дыры опасны!</div>
+          </div>
+        )}
+      </div>}
+
       {gameStatus === 'won' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-[28px] border border-[#9c6a1e]/65 bg-[linear-gradient(180deg,rgba(20,14,10,0.98),rgba(30,21,13,0.98))] p-6 text-center text-[#f4e6ca] shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
@@ -268,7 +288,7 @@ export const HUD: React.FC<HUDProps> = ({
               <p><strong className="text-white">Goal:</strong> tilt the wooden board and guide the metal ball to the target.</p>
               <p><strong className="text-white">Camera mode:</strong> raise both hands in front of the camera. Use the right panel to choose a control style and sensitivity.</p>
               <p><strong className="text-white">Mouse / WASD:</strong> use them as fallback controls if the room lighting is poor.</p>
-              <p><strong className="text-white">Gems:</strong> collect crystals on the way for a more complete run.</p>
+              <p><strong className="text-white">Gems:</strong> collect crystals on classic levels. In Cosmic Mission activate both rescue beacons to unlock victory.</p>
               <p><strong className="text-white">Shortcuts:</strong> R — restart, C — auto calibrate, P — presentation mode.</p>
             </div>
             <button onClick={() => setShowHelpModal(false)} className="mt-6 w-full rounded-2xl border border-[#4f3c22] bg-[#16110d] px-4 py-3 font-semibold text-[#f1dfbd] transition hover:bg-[#241911]">

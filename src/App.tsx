@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { BallState, GameStatus, HandTrackingState, LevelConfig, TiltState } from './game/types.ts';
-import { BALL_RADIUS, stepPhysics } from './game/physics.ts';
+import { BALL_RADIUS, stepPhysics, stepBoardTiltDynamics } from './game/physics.ts';
 import { clampBoardTilt, nextHoleState } from './game/mechanics.ts';
 import { generateRandomMaze, LEVELS } from './game/levels.ts';
 import { HandTracker } from './game/handTracker.ts';
@@ -10,10 +10,13 @@ import { ThreeLabyrinth } from './components/ThreeLabyrinth.tsx';
 import { WebcamOverlay } from './components/WebcamOverlay.tsx';
 import { HUD } from './components/HUD.tsx';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { COSMIC_MISSION, createMissionState, stepMission, type MissionState } from './game/mission.ts';
 
 export default function App() {
   const [levelIndex, setLevelIndex] = useState(0);
   const [customLevel, setCustomLevel] = useState<LevelConfig | null>(null);
+  const [missionMode, setMissionMode] = useState(false);
+  const [missionUI, setMissionUI] = useState<MissionState>(() => createMissionState());
 
   const currentLevel = customLevel || LEVELS[levelIndex];
 
@@ -91,6 +94,9 @@ export default function App() {
   gameStatusRef.current = gameStatus;
   // Single authoritative physical tilt shared with the Three.js renderer.
   const tiltRef = useRef<TiltState>({ pitch: 0, roll: 0 });
+  const tiltVelocityRef = useRef<TiltState>({ pitch: 0, roll: 0 });
+  const missionModeRef = useRef(false);
+  const missionRef = useRef<MissionState>(createMissionState());
   const collectedGemsRef = useRef<Set<string>>(collectedGems);
   collectedGemsRef.current = collectedGems;
   const elapsedTimeRef = useRef(0);
@@ -146,12 +152,17 @@ export default function App() {
     setElapsedTime(0);
     gameStatusRef.current = 'playing';
     tiltRef.current = { pitch: 0, roll: 0 };
+    tiltVelocityRef.current = { pitch: 0, roll: 0 };
+    missionRef.current = createMissionState();
+    setMissionUI(missionRef.current);
     setGameStatus('playing');
   }, []);
 
   // Select level
   const handleSelectLevel = useCallback((index: number) => {
     setCustomLevel(null);
+    setMissionMode(false);
+    missionModeRef.current = false;
     setLevelIndex(index);
     const lvl = LEVELS[index];
     currentLevelRef.current = lvl;
@@ -164,12 +175,17 @@ export default function App() {
     setElapsedTime(0);
     gameStatusRef.current = 'playing';
     tiltRef.current = { pitch: 0, roll: 0 };
+    tiltVelocityRef.current = { pitch: 0, roll: 0 };
+    missionRef.current = createMissionState();
+    setMissionUI(missionRef.current);
     setGameStatus('playing');
   }, []);
 
   // Next level
   const handleNextLevel = useCallback(() => {
     setCustomLevel(null);
+    setMissionMode(false);
+    missionModeRef.current = false;
     const nextIdx = (levelIndex + 1) % LEVELS.length;
     setLevelIndex(nextIdx);
     const lvl = LEVELS[nextIdx];
@@ -183,12 +199,17 @@ export default function App() {
     setElapsedTime(0);
     gameStatusRef.current = 'playing';
     tiltRef.current = { pitch: 0, roll: 0 };
+    tiltVelocityRef.current = { pitch: 0, roll: 0 };
+    missionRef.current = createMissionState();
+    setMissionUI(missionRef.current);
     setGameStatus('playing');
   }, [levelIndex]);
 
   // Procedural random maze
   const handleStartRandomLevel = useCallback(() => {
     const randLevel = generateRandomMaze(Date.now());
+    setMissionMode(false);
+    missionModeRef.current = false;
     setCustomLevel(randLevel);
     currentLevelRef.current = randLevel;
     const resetBall = createInitialBall(randLevel);
@@ -200,6 +221,29 @@ export default function App() {
     setElapsedTime(0);
     gameStatusRef.current = 'playing';
     tiltRef.current = { pitch: 0, roll: 0 };
+    tiltVelocityRef.current = { pitch: 0, roll: 0 };
+    missionRef.current = createMissionState();
+    setMissionUI(missionRef.current);
+    setGameStatus('playing');
+  }, []);
+
+  const startCosmicMission = useCallback(() => {
+    setCustomLevel(COSMIC_MISSION);
+    currentLevelRef.current = COSMIC_MISSION;
+    setMissionMode(true);
+    missionModeRef.current = true;
+    missionRef.current = createMissionState();
+    setMissionUI(missionRef.current);
+    const initial = createInitialBall(COSMIC_MISSION);
+    ballRef.current = initial;
+    setBall(initial);
+    collectedGemsRef.current = new Set();
+    setCollectedGems(new Set());
+    elapsedTimeRef.current = 0;
+    setElapsedTime(0);
+    tiltRef.current = { pitch: 0, roll: 0 };
+    tiltVelocityRef.current = { pitch: 0, roll: 0 };
+    gameStatusRef.current = 'playing';
     setGameStatus('playing');
   }, []);
 
@@ -239,6 +283,7 @@ export default function App() {
         const alpha = 1 - Math.exp(-14 * delta);
         tiltRef.current.pitch += (0 - tiltRef.current.pitch) * alpha;
         tiltRef.current.roll += (0 - tiltRef.current.roll) * alpha;
+        tiltVelocityRef.current = { pitch: 0, roll: 0 };
         return;
       }
       accumulator += delta;
@@ -247,15 +292,23 @@ export default function App() {
         accumulator -= FIXED_DT;
         steps++;
         const target = clampBoardTilt(tracker?.state.smoothTilt || { pitch: 0, roll: 0 });
-        const alpha = 1 - Math.exp(-14 * FIXED_DT);
-        tiltRef.current.pitch += (target.pitch - tiltRef.current.pitch) * alpha;
-        tiltRef.current.roll += (target.roll - tiltRef.current.roll) * alpha;
-        tiltRef.current = clampBoardTilt(tiltRef.current);
+        const dynamics = stepBoardTiltDynamics(tiltRef.current, tiltVelocityRef.current, target, FIXED_DT);
+        tiltRef.current = dynamics.tilt;
+        tiltVelocityRef.current = dynamics.angularVelocity;
         if (gameStatusRef.current === 'playing') elapsedTimeRef.current += FIXED_DT;
         const step = stepPhysics(
           ballRef.current, tiltRef.current, currentLevelRef.current, collectedGemsRef.current, FIXED_DT
         );
         ballRef.current = step.ball;
+        if (missionModeRef.current && !step.ball.isFalling) {
+          const event = stepMission(missionRef.current, ballRef.current, FIXED_DT);
+          ballRef.current = event.ball;
+          missionRef.current = event.state;
+          if (event.changed) {
+            setMissionUI(event.state);
+            if (event.teleported) soundEngine.playGemCollect();
+          }
+        }
         if (step.collisionEvents.length) {
           const impact = step.collisionEvents.reduce((best, item) => item.impactSpeed > best.impactSpeed ? item : best);
           soundEngine.playWallThud(impact.impactSpeed, impact.isCorner);
@@ -272,12 +325,12 @@ export default function App() {
           setGameStatus(holeState);
           if (holeState === 'fallen') break;
         }
-        if (step.reachedGoal && gameStatusRef.current === 'playing') {
+        if (step.reachedGoal && gameStatusRef.current === 'playing' && (!missionModeRef.current || missionRef.current.beacons >= 2)) {
           gameStatusRef.current = 'won';
           soundEngine.playWinFanfare();
           setGameStatus('won');
           const lvlId = currentLevelRef.current.id;
-          if (lvlId !== 99) { // random mazes are not comparable with each other
+          if (lvlId !== 99 && lvlId !== 100) { // random mazes are not comparable with each other
             const finalTime = elapsedTimeRef.current;
             setBestTimes(prev => {
               const best = prev[lvlId];
@@ -342,6 +395,8 @@ export default function App() {
     >
       {/* 3D Three.js Wooden Labyrinth Viewport */}
       <ThreeLabyrinth
+        missionMode={missionMode}
+        missionState={missionUI}
         level={currentLevel}
         tilt={handState.smoothTilt}
         ball={ball}
@@ -369,6 +424,9 @@ export default function App() {
 
       {/* HUD Dock & Modals */}
       <HUD
+        missionMode={missionMode}
+        missionState={missionUI}
+        onStartMission={startCosmicMission}
         presentationMode={presentationMode}
         level={currentLevel}
         allLevels={LEVELS}

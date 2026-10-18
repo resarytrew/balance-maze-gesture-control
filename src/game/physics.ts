@@ -6,10 +6,8 @@ export { MAX_TILT_RAD } from './mechanics.ts';
 // World units are intentionally game-scaled, but the ratios below follow a
 // solid sphere rolling on a rigid wooden surface.
 export const GRAVITY = 32.0; // units/s^2
-// Tuned from the established Balance Maze feel: small exponential energy loss
-// per 60 Hz frame keeps low-speed precision without letting high-speed runs
-// become uncontrollable on this compact board.
-export const ROLLING_RESISTANCE = 0.992;
+// Rolling resistance is a physical torque, not a per-frame velocity multiplier.
+export const ROLLING_RESISTANCE = 0.0025; // dimensionless rolling resistance; a small contact torque
 export const WOOD_KINETIC_FRICTION = 0.22; // sliding friction coefficient
 export const WOOD_STATIC_FRICTION = 0.38; // static friction coefficient
 export const WALL_RESTITUTION = 0.44; // bounciness against hardwood wall
@@ -158,6 +156,31 @@ export function integrateQuaternion(
  * the ball solver. Unlike exponential smoothing it retains momentum when the
  * player reverses direction, while settling without visual overshoot.
  */
+/** A critically damped physical gimbal, integrated at the fixed simulation step. */
+export function stepBoardTiltDynamics(
+  current: TiltState,
+  angularVelocity: TiltState,
+  target: TiltState,
+  dt: number,
+  responseHz = 3.2,
+) {
+  const safeTarget = clampBoardTilt(target);
+  const omega = 2 * Math.PI * responseHz;
+  const integrate = (position: number, speed: number, desired: number) => {
+    const acceleration = omega * omega * (desired - position) - 2 * omega * speed;
+    const nextSpeed = speed + acceleration * dt;
+    return { position: position + nextSpeed * dt, speed: nextSpeed };
+  };
+  const pitch = integrate(current.pitch, angularVelocity.pitch, safeTarget.pitch);
+  const roll = integrate(current.roll, angularVelocity.roll, safeTarget.roll);
+  const limited = clampBoardTilt({ pitch: pitch.position, roll: roll.position });
+  const clamped = Math.hypot(limited.pitch - pitch.position, limited.roll - roll.position) > 1e-8;
+  return {
+    tilt: limited,
+    angularVelocity: clamped ? { pitch: 0, roll: 0 } : { pitch: pitch.speed, roll: roll.speed },
+  };
+}
+
 const SPHERE_INERTIA_FACTOR = 2 / 5;
 const GROUND_EFFECTIVE_MASS_FACTOR = 1 + 1 / SPHERE_INERTIA_FACTOR; // 7 / 2
 
@@ -203,6 +226,29 @@ export function solveGroundContact(
   const impulse = Math.min(requiredImpulse, kineticLimit);
   applyGroundImpulse(ball, -slipX / slip * impulse, -slipZ / slip * impulse);
   return 'kinetic';
+}
+
+/** Contact torque opposes rolling spin; the ground solver resolves the resulting slip. */
+export function applyRollingResistanceTorque(ball: BallState, normalAccel: number, dt: number) {
+  const speed = Math.hypot(ball.vx, ball.vz);
+  const slip = Math.hypot(ball.vx + ball.wz * ball.radius, ball.vz - ball.wx * ball.radius);
+  if (speed < 1e-6 || slip > 0.04) return;
+  const rollingWx = ball.vz / ball.radius;
+  const rollingWz = -ball.vx / ball.radius;
+  const rollingSpin = Math.hypot(rollingWx, rollingWz);
+  if (rollingSpin < 1e-6) return;
+  const inertia = SPHERE_INERTIA_FACTOR * BALL_MASS * ball.radius ** 2;
+  const torque = ROLLING_RESISTANCE * BALL_MASS * normalAccel * ball.radius;
+  const delta = Math.min(rollingSpin, torque / inertia * dt);
+  ball.wx -= rollingWx / rollingSpin * delta;
+  ball.wz -= rollingWz / rollingSpin * delta;
+}
+
+/** Repeatable microscopic grain relief; never per-frame random noise. */
+export function woodSurfaceGradient(x: number, z: number) {
+  const gx = 0.00044 * (1.17 * Math.cos(1.17 * x + 0.44 * z) + 0.33 * Math.cos(0.71 * x - 0.33 * z));
+  const gz = 0.00044 * (0.44 * Math.cos(1.17 * x + 0.44 * z) - 0.71 * Math.cos(0.71 * x - 0.33 * z));
+  return { x: gx, z: gz };
 }
 
 /**
@@ -321,25 +367,25 @@ export function stepPhysics(
     // 1. Gravity components along board surface
     // Roll tilts around Z: positive roll tilts +X down
     // Pitch tilts around X: positive pitch lowers +Z (Three.js rotation.x).
-    const gx = GRAVITY * Math.sin(safeTilt.roll);
-    const gz = GRAVITY * Math.sin(safeTilt.pitch);
-
-    // The board's normal force bounds the static / kinetic contact impulse.
+    // The normal contact force drives friction and microscopic surface response.
     const normalAcceleration = GRAVITY * Math.cos(safeTilt.pitch) * Math.cos(safeTilt.roll);
+    const micro = woodSurfaceGradient(newBall.x, newBall.z);
+    const gx = GRAVITY * Math.sin(safeTilt.roll) - normalAcceleration * micro.x;
+    const gz = GRAVITY * Math.sin(safeTilt.pitch) - normalAcceleration * micro.z;
     newBall.vx += gx * stepDt;
     newBall.vz += gz * stepDt;
     solveGroundContact(newBall, normalAcceleration, stepDt);
 
-    // Established Balance Maze damping curve. Scaling both translation and
-    // rolling spin preserves the no-slip constraint and restores the familiar
-    // controllability at slow speed on this small physical board.
-    const rollDamping = Math.pow(ROLLING_RESISTANCE, stepDt * 60);
-    newBall.vx *= rollDamping;
-    newBall.vz *= rollDamping;
-    newBall.wx *= rollDamping;
-    newBall.wz *= rollDamping;
-    newBall.wy *= Math.pow(0.9, stepDt * 60); // side-spin naturally damps on wood
-    newBall.slip = Math.min(1, Math.hypot(newBall.vx + newBall.wz * R, newBall.vz - newBall.wx * R) / 2);
+    // Resist spin with a tiny torque, then restore no-slip contact if possible.
+    applyRollingResistanceTorque(newBall, normalAcceleration, stepDt);
+    solveGroundContact(newBall, normalAcceleration, stepDt);
+    const speed = Math.hypot(newBall.vx, newBall.vz);
+    const slip = Math.hypot(newBall.vx + newBall.wz * R, newBall.vz - newBall.wx * R);
+    if (speed < 0.00018 && slip < 0.00018 && Math.hypot(gx, gz) < ROLLING_RESISTANCE * normalAcceleration) {
+      newBall.vx = newBall.vz = newBall.wx = newBall.wz = 0;
+    }
+    newBall.wy *= Math.exp(-0.22 * stepDt);
+    newBall.slip = Math.min(1, slip / 2);
 
     // Integrate position
     newBall.x += newBall.vx * stepDt;
