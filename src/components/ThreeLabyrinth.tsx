@@ -15,7 +15,7 @@ import {
 } from '../game/textures.ts';
 import { soundEngine } from '../game/audio.ts';
 import { createCosmicFieldTexture } from '../game/spaceField.ts';
-import { PORTALS, type MissionState } from '../game/mission.ts';
+import { getMissionPortals, isCosmicLevel, chapterIndex, type MissionState } from '../game/mission.ts';
 import { clampBoardTilt, BOARD_SIZE, CABINET_HEIGHT, TABLE_Y } from '../game/mechanics.ts';
 
 interface ThreeLabyrinthProps {
@@ -42,6 +42,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
   gameStatus,
   collectedGems,
   impactSparks,
+  missionState,
   onMouseTilt,
   trackingMode,
 }) => {
@@ -54,6 +55,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
   const statusRef = useRef<GameStatus>(gameStatus);
   const collectedGemsRef = useRef<Set<string>>(collectedGems);
   const impactSparksRef = useRef(impactSparks);
+  const missionStateRef = useRef<MissionState | null>(missionState ?? null);
   const onMouseTiltRef = useRef(onMouseTilt);
   const trackingModeRef = useRef(trackingMode);
 
@@ -63,6 +65,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
   statusRef.current = gameStatus;
   collectedGemsRef.current = collectedGems;
   impactSparksRef.current = impactSparks;
+  missionStateRef.current = missionState ?? null;
   statusRef.current = gameStatus;
   collectedGemsRef.current = collectedGems;
   onMouseTiltRef.current = onMouseTilt;
@@ -169,6 +172,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     frontFill.position.set(1.5, 8.5, 19);
     scene.add(frontFill);
 
+    const studioProps: THREE.Object3D[] = [];
     // Workbench Table Surface
     const tableGeo = new THREE.PlaneGeometry(90, 90);
     const tabletopTex = new THREE.TextureLoader().load(darkWalnutTabletopUrl);
@@ -192,6 +196,14 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     tableMesh.position.y = TABLE_Y;
     tableMesh.receiveShadow = !isHeadless;
     scene.add(tableMesh);
+    const spaceBackdrop = new THREE.Mesh(
+      new THREE.PlaneGeometry(90, 90),
+      new THREE.MeshBasicMaterial({ color: 0x090f20 }),
+    );
+    spaceBackdrop.rotation.x = -Math.PI / 2;
+    spaceBackdrop.position.y = TABLE_Y - 0.08;
+    spaceBackdrop.visible = false;
+    scene.add(spaceBackdrop);
 
     // Soft reflected pool of lamp light: intentionally material-driven rather
     // than a photographic background, so the board remains the focal object.
@@ -214,6 +226,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     glowMesh.rotation.x = -Math.PI / 2;
     glowMesh.position.set(-11.5, TABLE_Y + 0.018, -5.5);
     scene.add(glowMesh);
+    studioProps.push(glowMesh);
 
     // Cabinet Ground Contact Shadow
     const shadowGeo = new THREE.PlaneGeometry(32, 32);
@@ -237,6 +250,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     shadowMesh.rotation.x = -Math.PI / 2;
     shadowMesh.position.y = TABLE_Y + 0.02;
     scene.add(shadowMesh);
+    studioProps.push(shadowMesh);
 
     // Peripheral studio props to frame the object like a premium tabletop render.
     const makeBookStack = (x: number, z: number, w: number, d: number, h: number, color: number) => {
@@ -251,6 +265,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       g.position.set(x, TABLE_Y + 0.09 + h * 0.5, z);
       g.rotation.y = 0.2;
       scene.add(g);
+      studioProps.push(g);
     };
     makeBookStack(15, -13, 7, 5.5, 1.2, 0x4b2a18);
     makeBookStack(-17, 12, 6.3, 4.8, 0.95, 0x352013);
@@ -298,6 +313,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       plant.position.set(x, TABLE_Y + 0.04, z);
       plant.rotation.y = -0.42;
       scene.add(plant);
+      studioProps.push(plant);
     };
     makePottedPlant(-18, -10.8);
 
@@ -370,6 +386,11 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       envMapIntensity: 0.42,
       side: THREE.DoubleSide,
     });
+
+    const lunarFloorMat = cosmicFloorMat.clone();
+    lunarFloorMat.color.set(0xc2d3e9);
+    const nebulaFloorMat = cosmicFloorMat.clone();
+    nebulaFloorMat.color.set(0xe1b7de);
 
     // Polished brushed brass material with machining relief
     const brassMat = new THREE.MeshPhysicalMaterial({
@@ -558,6 +579,17 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     ballMesh.castShadow = !isHeadless;
     ballMesh.position.set(ballRef.current.x, ballRef.current.radius, ballRef.current.z);
     innerBoard.add(ballMesh);
+
+    const stasisHalo = new THREE.Group();
+    const stasisMaterial = new THREE.MeshBasicMaterial({
+      color: 0x9ed6ff, transparent: true, opacity: 0.65,
+      depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const stasisCircle = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.044, 10, 60), stasisMaterial);
+    stasisCircle.rotation.x = -Math.PI / 2;
+    stasisHalo.add(stasisCircle);
+    stasisHalo.visible = false;
+    innerBoard.add(stasisHalo);
     ballMeshRef.current = ballMesh;
 
     // Contact shadow beneath the steel ball
@@ -632,7 +664,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     };
 
     // Dispose procedural assets when levels change; retain globally shared materials.
-    const sharedMaterials = new Set<THREE.Material>([cabinetMat, floorMat, cosmicFloorMat, brassMat, carvingMatH, carvingMatV, carvedWalnutMat]);
+    const sharedMaterials = new Set<THREE.Material>([cabinetMat, floorMat, cosmicFloorMat, lunarFloorMat, nebulaFloorMat, brassMat, carvingMatH, carvingMatV, carvedWalnutMat]);
     const disposeRemoved = (object: THREE.Object3D) => {
       const geometries = new Set<THREE.BufferGeometry>();
       const materials = new Set<THREE.Material>();
@@ -990,13 +1022,15 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       floorShape.closePath();
       curLevel.holes.forEach(hole => {
         const opening = new THREE.Path();
-        opening.absarc(hole.x, hole.z, hole.radius * (curLevel.id === 100 ? 1 : 0.76), 0, Math.PI * 2, true);
+        opening.absarc(hole.x, hole.z, hole.radius * (isCosmicLevel(curLevel) ? 1 : 0.76), 0, Math.PI * 2, true);
         floorShape.holes.push(opening);
       });
       const floorGeo = new THREE.ExtrudeGeometry(floorShape, {
         depth: 0.45, bevelEnabled: false, curveSegments: 32,
       });
-      const floorMesh = new THREE.Mesh(floorGeo, curLevel.id === 100 ? cosmicFloorMat : floorMat);
+      const floorMesh = new THREE.Mesh(floorGeo, isCosmicLevel(curLevel)
+        ? (chapterIndex(curLevel) === 1 ? lunarFloorMat : chapterIndex(curLevel) === 2 ? nebulaFloorMat : cosmicFloorMat)
+        : floorMat);
       floorMesh.rotation.x = Math.PI / 2;
       floorMesh.receiveShadow = !isHeadless;
       innerBoard.add(floorMesh);
@@ -1170,29 +1204,29 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       });
 
       // 5. Deep Recessed Holes with Countersunk Brass Collars
-      const holeMat = new THREE.MeshBasicMaterial({ color: curLevel.id === 100 ? 0x03040c : 0x050403 });
+      const holeMat = new THREE.MeshBasicMaterial({ color: isCosmicLevel(curLevel) ? 0x03040c : 0x050403 });
       curLevel.holes.forEach((hole) => {
         const holeGroup = new THREE.Group();
 
         // Dark cylinder drop shaft
-        const shaftGeo = new THREE.CylinderGeometry(hole.radius * (curLevel.id === 100 ? 1 : 0.75), hole.radius * (curLevel.id === 100 ? 0.92 : 0.65), 0.9, 40, 1, true);
+        const shaftGeo = new THREE.CylinderGeometry(hole.radius * (isCosmicLevel(curLevel) ? 1 : 0.75), hole.radius * (isCosmicLevel(curLevel) ? 0.92 : 0.65), 0.9, 40, 1, true);
         const shaftMesh = new THREE.Mesh(shaftGeo, holeMat);
         shaftMesh.position.y = -0.45;
         holeGroup.add(shaftMesh);
-        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * (curLevel.id === 100 ? 0.92 : 0.65), 40), holeMat);
+        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * (isCosmicLevel(curLevel) ? 0.92 : 0.65), 40), holeMat);
         bottom.rotation.x = -Math.PI / 2;
         bottom.position.y = -0.9;
         holeGroup.add(bottom);
 
         // Countersunk Brass Bezel (Torus)
-        const bezelGeo = new THREE.TorusGeometry(curLevel.id === 100 ? hole.radius + 0.04 : hole.radius * 0.78, 0.095, 14, 40);
+        const bezelGeo = new THREE.TorusGeometry(isCosmicLevel(curLevel) ? hole.radius + 0.04 : hole.radius * 0.78, 0.095, 14, 40);
         const bezelMesh = new THREE.Mesh(bezelGeo, brassMat);
         bezelMesh.rotation.x = Math.PI / 2;
         bezelMesh.position.y = 0.022;
         bezelMesh.castShadow = !isHeadless;
         holeGroup.add(bezelMesh);
 
-        if (curLevel.id === 100) {
+        if (isCosmicLevel(curLevel)) {
           // Restrained concentric accretion rings remain purely decorative.
           // Falling still follows physical support geometry.
           for (const [offset, color, opacity] of [
@@ -1217,8 +1251,8 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
 
       // Cosmetic wormholes belong to the mission board, not to the physics solver.
       // They teleport only when stepMission confirms a ball-centre crossing.
-      if (curLevel.id === 100) {
-        PORTALS.forEach((portal, index) => {
+      if (isCosmicLevel(curLevel)) {
+        getMissionPortals(curLevel).forEach((portal, index) => {
           const group = new THREE.Group();
           const rim = new THREE.Mesh(
             new THREE.TorusGeometry(0.64, 0.085, 12, 56),
@@ -1264,7 +1298,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       innerBoard.add(goalBezel);
 
       // A tiny collectible tin rocket celebrates the rescue at the finish.
-      if (curLevel.id === 100) {
+      if (isCosmicLevel(curLevel)) {
         const rocket = new THREE.Group();
         const ivory = new THREE.MeshStandardMaterial({ color: 0xf2e6c8, roughness: 0.4, metalness: 0.3 });
         const red = new THREE.MeshStandardMaterial({ color: 0xc3483c, roughness: 0.4, metalness: 0.4 });
@@ -1293,7 +1327,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         gemGroup.add(pedestal);
 
         // Rescue beacons are enamelled miniature planets, not green gems.
-        const isBeacon = curLevel.id === 100;
+        const isBeacon = isCosmicLevel(curLevel);
         const gemMat = isBeacon
           ? new THREE.MeshPhysicalMaterial({
               color: gem.id.endsWith('a') ? 0xd76a54 : 0x4e9db9,
@@ -1399,6 +1433,13 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         currentBuiltLevelVersion = levelRef.current.version;
       }
 
+      const cosmic = isCosmicLevel(levelRef.current);
+      tableMesh.visible = !cosmic;
+      spaceBackdrop.visible = cosmic;
+      studioProps.forEach(prop => { prop.visible = !cosmic; });
+      scene.background = new THREE.Color(cosmic ? 0x080d1c : 0x120b07);
+      scene.fog = new THREE.FogExp2(cosmic ? 0x080d1c : 0x120b07, 0.012);
+
       // Trigger impact collision sparks
       if (impactSparksRef.current && impactSparksRef.current.key !== lastHandledSparkKey) {
         lastHandledSparkKey = impactSparksRef.current.key;
@@ -1440,6 +1481,15 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
           ballShadowRef.current.scale.set(shadowScale, shadowScale, 1);
           ballShadowRef.current.visible = !curBall.isFalling;
         }
+      }
+
+      // Adventure-only temporal aura follows the actual ball; it does not push it.
+      const stasisOn = cosmic && (missionStateRef.current?.stasisRemaining ?? 0) > 0;
+      stasisHalo.visible = stasisOn && !curBall.isFalling;
+      if (stasisHalo.visible) {
+        stasisHalo.position.set(curBall.x, curBall.radius + curBall.y, curBall.z);
+        stasisHalo.rotation.y += dt * 1.7;
+        stasisCircle.scale.setScalar(1 + 0.07 * Math.sin(time * 0.008));
       }
 
       // Continuous rolling sound updates
