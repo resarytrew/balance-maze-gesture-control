@@ -4,7 +4,11 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const isGitHubPages = process.env.GITHUB_ACTIONS === 'true';
   return {
+    // Keep local / preview URLs clean while emitting correct asset paths when
+    // GitHub Pages serves the app from its repository subdirectory.
+    base: isGitHubPages ? '/balance-maze-gesture-control/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
