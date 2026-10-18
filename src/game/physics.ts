@@ -1,5 +1,5 @@
 import type { BallState, HandPoint, Hole, LevelConfig, TiltState, Wall } from './types.ts';
-import { clampBoardTilt, MAX_TILT_RAD } from './mechanics.ts';
+import { clampBoardTilt, MAX_TILT_RAD, PLAYFIELD_INSET } from './mechanics.ts';
 export { MAX_TILT_RAD } from './mechanics.ts';
 
 // Physical constants for a polished chrome-steel ball on lacquered hardwood.
@@ -361,7 +361,7 @@ export function stepPhysics(
   }
 
   const R = newBall.radius;
-  const halfSize = level.boardSize / 2 - 0.42;
+  const halfSize = level.boardSize / 2 - PLAYFIELD_INSET;
 
   for (let s = 0; s < subSteps; s++) {
     // 1. Gravity components along board surface
