@@ -207,3 +207,26 @@
 .bm-chapter-dot:disabled{opacity:.3;cursor:not-allowed;}
 .bm-chapter-dot:not(:disabled):hover{border-color:#f4c475;color:#ffdf9d;}
 @media (max-width:690px){.bm-mission-panel{max-height:215px;overflow-y:auto;}}
+
+/* A short cinematic reward that fades by itself: no timers or blocking modal. */
+.bm-cosmic-event {
+  position:fixed; left:50%; top:22%;
+  transform:translate(-50%,-50%);
+  z-index:34;pointer-events:none;white-space:nowrap;
+  padding:14px 25px;border-radius:99px;
+  border:1px solid rgba(245,217,148,.7);
+  background:linear-gradient(115deg,rgba(18,29,57,.92),rgba(39,45,79,.92));
+  box-shadow:0 0 28px rgba(95,127,197,.27),0 16px 46px #0009;
+  color:#fff0bb; font:800 clamp(13px,2vw,22px)/1.2 Georgia,serif;letter-spacing:.085em;
+  animation:bm-space-event 2.45s ease-out forwards;
+}
+@keyframes bm-space-event {
+  0%{opacity:0;transform:translate(-50%,-35%) scale(.72)}
+  16%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+  30%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  78%{opacity:1;transform:translate(-50%,-55%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-85%) scale(.98)}
+}
+@media (prefers-reduced-motion:reduce) {
+  .bm-cosmic-event {animation:none;opacity:1;top:19%;}
+}
