@@ -14,6 +14,7 @@ import {
   createWoodTexture,
 } from '../game/textures.ts';
 import { soundEngine } from '../game/audio.ts';
+import { createCosmicFieldTexture } from '../game/spaceField.ts';
 import { PORTALS, type MissionState } from '../game/mission.ts';
 import { clampBoardTilt, BOARD_SIZE, CABINET_HEIGHT, TABLE_Y } from '../game/mechanics.ts';
 
@@ -356,6 +357,20 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       sheenColor: new THREE.Color(0xb9763c),
     });
 
+    // A printed midnight-blue, 1960s science-fiction playfield is reserved
+    // for the rescue mission. Classic wooden boards keep their own material.
+    const cosmicFieldTex = createCosmicFieldTexture();
+    const cosmicFloorMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      map: cosmicFieldTex,
+      roughness: 0.48,
+      metalness: 0.02,
+      clearcoat: 0.58,
+      clearcoatRoughness: 0.22,
+      envMapIntensity: 0.42,
+      side: THREE.DoubleSide,
+    });
+
     // Polished brushed brass material with machining relief
     const brassMat = new THREE.MeshPhysicalMaterial({
       color: 0xd9b45a,
@@ -617,7 +632,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     };
 
     // Dispose procedural assets when levels change; retain globally shared materials.
-    const sharedMaterials = new Set<THREE.Material>([cabinetMat, floorMat, brassMat, carvingMatH, carvingMatV, carvedWalnutMat]);
+    const sharedMaterials = new Set<THREE.Material>([cabinetMat, floorMat, cosmicFloorMat, brassMat, carvingMatH, carvingMatV, carvedWalnutMat]);
     const disposeRemoved = (object: THREE.Object3D) => {
       const geometries = new Set<THREE.BufferGeometry>();
       const materials = new Set<THREE.Material>();
@@ -666,7 +681,11 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         disposeRemoved(child);
       }
 
+      // Every loaded level is normalized to the same mechanical tray.
       const bSize = BOARD_SIZE;
+      if (Math.abs(curLevel.boardSize - bSize) > 1e-6) {
+        console.warn('Mismatch between level and physical tray:', curLevel.boardSize, bSize);
+      }
       const cabOuterSize = bSize + 4.2;
       const cabWallThickness = 1.1;
       const cabHeight = CABINET_HEIGHT;
@@ -971,13 +990,13 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       floorShape.closePath();
       curLevel.holes.forEach(hole => {
         const opening = new THREE.Path();
-        opening.absarc(hole.x, hole.z, hole.radius * 0.76, 0, Math.PI * 2, true);
+        opening.absarc(hole.x, hole.z, hole.radius, 0, Math.PI * 2, true);
         floorShape.holes.push(opening);
       });
       const floorGeo = new THREE.ExtrudeGeometry(floorShape, {
         depth: 0.45, bevelEnabled: false, curveSegments: 32,
       });
-      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      const floorMesh = new THREE.Mesh(floorGeo, curLevel.id === 100 ? cosmicFloorMat : floorMat);
       floorMesh.rotation.x = Math.PI / 2;
       floorMesh.receiveShadow = !isHeadless;
       innerBoard.add(floorMesh);
@@ -985,6 +1004,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       // Routed parquet seams are real scene geometry. Segmenting them around
       // openings avoids the old visual defect where a painted grid crossed an
       // apparently open hole.
+      if (curLevel.id !== 100) {
       const tileInset = 0.45;
       const tileHalf = bSize / 2 - tileInset;
       const tileCount = 9;
@@ -1027,6 +1047,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         new THREE.LineBasicMaterial({ color: 0x3a1f10, transparent: true, opacity: 0.2 })
       );
       innerBoard.add(seamLines);
+      }
 
       // Fine brass inlay defines the playing field without closing off the
       // routes. It echoes the fittings on the outer case and adds a deliberate
@@ -1149,7 +1170,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       });
 
       // 5. Deep Recessed Holes with Countersunk Brass Collars
-      const holeMat = new THREE.MeshBasicMaterial({ color: 0x050403 });
+      const holeMat = new THREE.MeshBasicMaterial({ color: curLevel.id === 100 ? 0x03040c : 0x050403 });
       curLevel.holes.forEach((hole) => {
         const holeGroup = new THREE.Group();
 
@@ -1170,6 +1191,25 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         bezelMesh.position.y = 0.022;
         bezelMesh.castShadow = !isHeadless;
         holeGroup.add(bezelMesh);
+
+        if (curLevel.id === 100) {
+          // Restrained concentric accretion rings remain purely decorative.
+          // Falling still follows physical support geometry.
+          for (const [offset, color, opacity] of [
+            [0.20, 0x6878b1, 0.46],
+            [0.34, 0xcc7e53, 0.32],
+          ] as const) {
+            const ring = new THREE.Mesh(
+              new THREE.TorusGeometry(hole.radius + offset, 0.015, 6, 64),
+              new THREE.MeshBasicMaterial({
+                color, transparent: true, opacity, depthWrite: false,
+              }),
+            );
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.018;
+            holeGroup.add(ring);
+          }
+        }
 
         holeGroup.position.set(hole.x, 0, hole.z);
         innerBoard.add(holeGroup);
@@ -1252,20 +1292,31 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         pedestal.position.y = 0.075;
         gemGroup.add(pedestal);
 
-        // Emerald crystal
-        const gemMat = new THREE.MeshPhysicalMaterial({
-          color: 0x00e676,
-          metalness: 0.1,
-          roughness: 0.12,
-          transmission: 0.85,
-          thickness: 0.7,
-          emissive: 0x00b050,
-          emissiveIntensity: 0.5,
-        });
-
-        const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+        // Rescue beacons are enamelled miniature planets, not green gems.
+        const isBeacon = curLevel.id === 100;
+        const gemMat = isBeacon
+          ? new THREE.MeshPhysicalMaterial({
+              color: gem.id.endsWith('a') ? 0xd76a54 : 0x4e9db9,
+              metalness: 0.28, roughness: 0.26, clearcoat: 0.65,
+              emissive: gem.id.endsWith('a') ? 0x5a1e1a : 0x104b63,
+              emissiveIntensity: 0.4,
+            })
+          : new THREE.MeshPhysicalMaterial({
+              color: 0x00e676, metalness: 0.1, roughness: 0.12,
+              transmission: 0.85, thickness: 0.7, emissive: 0x00b050,
+              emissiveIntensity: 0.5,
+            });
+        const gemMesh = new THREE.Mesh(isBeacon ? new THREE.SphereGeometry(0.3, 24, 16) : gemGeo, gemMat);
         gemMesh.position.y = 0.52;
         gemMesh.castShadow = !isHeadless;
+        if (isBeacon) {
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(0.42, 0.042, 10, 40),
+            new THREE.MeshStandardMaterial({ color: 0xd1aa67, metalness: 0.82, roughness: 0.22 }),
+          );
+          ring.rotation.x = 0.31;
+          gemMesh.add(ring);
+        }
         gemGroup.add(gemMesh);
 
         gemGroup.position.set(gem.x, 0, gem.z);
