@@ -1,0 +1,21 @@
+Balance Maze — чистая установка на Windows (PowerShell)
+
+ВАЖНО: распакуйте архив в НОВУЮ пустую папку. Не копируйте файлы поверх предыдущих версий Balance Maze!
+
+1. Откройте PowerShell в папке, содержащей package.json.
+2. Проверьте: npm pkg get dependencies.react-chrono
+   Ожидаемый ответ: {} (библиотека react-chrono не нужна игре).
+3. Проверьте версии: node -v и npm -v.
+4. Выполните:
+   npm install
+   npm run dev
+
+Если вы хотите починить СТАРУЮ ПАПКУ вместо новой:
+  npm pkg delete dependencies.react-chrono
+  npm pkg delete devDependencies.react-chrono
+  Remove-Item -Recurse -Force .\node_modules -ErrorAction SilentlyContinue
+  Remove-Item -Force .\package-lock.json -ErrorAction SilentlyContinue
+  npm install
+
+Не используйте --force или --legacy-peer-deps: исправляйте причину конфликта.
+Если ошибка повторится, пришлите полный вывод: Get-Content .\package.json

@@ -1,0 +1,8 @@
+{
+  "name": "Balance Maze",
+  "description": "3D лабиринт с физикой качения металлического шарика и управлением наклоном через две ладони веб-камеры.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
