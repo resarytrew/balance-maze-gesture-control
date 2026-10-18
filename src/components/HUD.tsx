@@ -27,6 +27,7 @@ interface HUDProps {
   missionChapters: LevelConfig[];
   completedChapters: number[];
   onActivateStasis: () => void;
+  pinchGestureAvailable: boolean;
   presentationMode?: boolean;
   level: LevelConfig;
   allLevels: LevelConfig[];
@@ -54,6 +55,7 @@ export const HUD: React.FC<HUDProps> = ({
   missionChapters,
   completedChapters,
   onActivateStasis,
+  pinchGestureAvailable,
   presentationMode = false,
   level,
   allLevels,
@@ -284,7 +286,12 @@ export const HUD: React.FC<HUDProps> = ({
                   ? `ЗАМЕДЛЕНИЕ · ${missionState.stasisRemaining.toFixed(1)} с`
                   : `ЗАМЕДЛИТЬ ВРЕМЯ · ${missionState.charges} зар.`}
               </button>
-              <div className="bm-mission-tip">Пробел или кнопка · маяки пополняют заряды</div>
+              <div className="bm-mission-tip">
+                {pinchGestureAvailable
+                  ? '🤏 Соедини большой и указательный пальцы ЛЮБОЙ руки на 0,2 с. Разомкни пальцы перед следующим использованием.'
+                  : '🤏 С камерой и MediaPipe: соедини большой и указательный пальцы любой руки. Без камеры — пробел или кнопка.'}
+              </div>
+              <div className="bm-mission-tip">Маяки пополняют заряды · кнопку и пробел можно использовать как запасное управление.</div>
               {allChaptersDone && <div className="bm-mission-tip">★ Экспедиция пройдена!</div>}
             </>
           )}
@@ -354,7 +361,7 @@ export const HUD: React.FC<HUDProps> = ({
               <p><strong className="text-white">Goal:</strong> tilt the wooden board and guide the metal ball to the target.</p>
               <p><strong className="text-white">Camera mode:</strong> raise both hands in front of the camera. Use the right panel to choose a control style and sensitivity.</p>
               <p><strong className="text-white">Mouse / WASD:</strong> use them as fallback controls if the room lighting is poor.</p>
-              <p><strong className="text-white">Gems:</strong> collect crystals on classic levels. In Cosmic Voyage activate each stage's rescue beacons to unlock victory; beacons also charge the time-dilation ability. Press Space or use the mission panel to slow time.</p>
+              <p><strong className="text-white">Gems:</strong> collect crystals on classic levels. In Cosmic Voyage activate each stage's rescue beacons to unlock victory; beacons also charge the time-dilation ability. With MediaPipe camera tracking, bring the thumb and index fingertips together on either hand for 0.2 s; release to re-arm. Press Space or use the mission panel as a fallback.</p>
               <p><strong className="text-white">Shortcuts:</strong> R — restart, C — auto calibrate, P — presentation mode.</p>
             </div>
             <button onClick={() => setShowHelpModal(false)} className="mt-6 w-full rounded-2xl border border-[#4f3c22] bg-[#16110d] px-4 py-3 font-semibold text-[#f1dfbd] transition hover:bg-[#241911]">
