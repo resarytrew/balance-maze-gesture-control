@@ -14,9 +14,12 @@ import {
   createWoodTexture,
 } from '../game/textures.ts';
 import { soundEngine } from '../game/audio.ts';
+import { PORTALS, type MissionState } from '../game/mission.ts';
 import { clampBoardTilt, BOARD_SIZE, CABINET_HEIGHT, TABLE_Y } from '../game/mechanics.ts';
 
 interface ThreeLabyrinthProps {
+  missionMode?: boolean;
+  missionState?: MissionState;
   level: LevelConfig;
   tilt: TiltState;
   ball: BallState;
@@ -72,6 +75,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
   const sideKnobPitchRef = useRef<THREE.Group | null>(null);
   const frontKnobRollRef = useRef<THREE.Group | null>(null);
   const gemsMapRef = useRef<Map<string, THREE.Group>>(new Map());
+  const portalMeshesRef = useRef<THREE.Group[]>([]);
   const particlesRef = useRef<THREE.Points | null>(null);
 
   // Dragging state for mouse mode
@@ -645,6 +649,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       });
       toRemove.forEach((child) => { innerBoard.remove(child); disposeRemoved(child); });
       gemsMapRef.current.clear();
+      portalMeshesRef.current = [];
 
       // Clear cabinet and middle gimbal frames
       while (cabinetGroup.children.length > 2) {
@@ -1146,17 +1151,17 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         const holeGroup = new THREE.Group();
 
         // Dark cylinder drop shaft
-        const shaftGeo = new THREE.CylinderGeometry(hole.radius * 0.75, hole.radius * 0.65, 0.9, 32, 1, true);
+        const shaftGeo = new THREE.CylinderGeometry(hole.radius, hole.radius * 0.92, 0.9, 40, 1, true);
         const shaftMesh = new THREE.Mesh(shaftGeo, holeMat);
         shaftMesh.position.y = -0.45;
         holeGroup.add(shaftMesh);
-        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * 0.65, 32), holeMat);
+        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * 0.92, 40), holeMat);
         bottom.rotation.x = -Math.PI / 2;
         bottom.position.y = -0.9;
         holeGroup.add(bottom);
 
         // Countersunk Brass Bezel (Torus)
-        const bezelGeo = new THREE.TorusGeometry(hole.radius * 0.78, 0.095, 14, 32);
+        const bezelGeo = new THREE.TorusGeometry(hole.radius + 0.04, 0.095, 14, 40);
         const bezelMesh = new THREE.Mesh(bezelGeo, brassMat);
         bezelMesh.rotation.x = Math.PI / 2;
         bezelMesh.position.y = 0.022;
@@ -1166,6 +1171,31 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         holeGroup.position.set(hole.x, 0, hole.z);
         innerBoard.add(holeGroup);
       });
+
+      // Cosmetic wormholes belong to the mission board, not to the physics solver.
+      // They teleport only when stepMission confirms a ball-centre crossing.
+      if (curLevel.id === 100) {
+        PORTALS.forEach((portal, index) => {
+          const group = new THREE.Group();
+          const rim = new THREE.Mesh(
+            new THREE.TorusGeometry(0.64, 0.085, 12, 56),
+            new THREE.MeshStandardMaterial({ color: index === 0 ? 0xa46dff : 0x72e6ff, metalness: 0.42, roughness: 0.21, emissive: index === 0 ? 0x5722b9 : 0x188aaa, emissiveIntensity: 1.25 })
+          );
+          rim.rotation.x = Math.PI / 2;
+          rim.position.y = 0.065;
+          group.add(rim);
+          const halo = new THREE.Mesh(
+            new THREE.RingGeometry(0.37, 0.59, 56),
+            new THREE.MeshBasicMaterial({ color: index === 0 ? 0x8045e8 : 0x1ca8d4, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false })
+          );
+          halo.rotation.x = -Math.PI / 2;
+          halo.position.y = 0.026;
+          group.add(halo);
+          group.position.set(portal.x, 0, portal.z);
+          innerBoard.add(group);
+          portalMeshesRef.current.push(group);
+        });
+      }
 
       // 6. Finish Goal Medallion
       const targetTex = createTargetTexture(512);
@@ -1346,6 +1376,13 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       } else {
         soundEngine.stopRolling();
       }
+
+      // Gently pulse portal light without changing its physics.
+      portalMeshesRef.current.forEach((portal, index) => {
+        const halo = portal.children[1] as THREE.Mesh | undefined;
+        const mat = halo?.material as THREE.MeshBasicMaterial | undefined;
+        if (mat) mat.opacity = 0.25 + 0.15 * (1 + Math.sin(time * 0.003 + index * Math.PI)) / 2;
+      });
 
       // Gem hover & spin
       const colGems = collectedGemsRef.current;
