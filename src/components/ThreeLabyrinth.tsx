@@ -638,6 +638,8 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       });
     };
 
+    let missionRocket: THREE.Group | null = null;
+
     // Helper to build cabinet and labyrinth geometry
     const buildLevelScene = (curLevel: LevelConfig) => {
       // Clear previous level items from innerBoard (except ball, shadow, particles)
@@ -650,6 +652,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       toRemove.forEach((child) => { innerBoard.remove(child); disposeRemoved(child); });
       gemsMapRef.current.clear();
       portalMeshesRef.current = [];
+      missionRocket = null;
 
       // Clear cabinet and middle gimbal frames
       while (cabinetGroup.children.length > 2) {
@@ -1220,6 +1223,25 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       goalBezel.position.set(curLevel.goal.x, 0.025, curLevel.goal.z);
       innerBoard.add(goalBezel);
 
+      // A tiny collectible tin rocket celebrates the rescue at the finish.
+      if (curLevel.id === 100) {
+        const rocket = new THREE.Group();
+        const ivory = new THREE.MeshStandardMaterial({ color: 0xf2e6c8, roughness: 0.4, metalness: 0.3 });
+        const red = new THREE.MeshStandardMaterial({ color: 0xc3483c, roughness: 0.4, metalness: 0.4 });
+        const engine = new THREE.MeshStandardMaterial({ color: 0x3a4f77, roughness: 0.3, metalness: 0.8 });
+        rocket.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.75, 20), ivory));
+        const nose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.3, 20), red);
+        nose.position.y = 0.52;
+        rocket.add(nose);
+        const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.12, 0.17, 16), engine);
+        bell.position.y = -0.43;
+        rocket.add(bell);
+        rocket.position.set(curLevel.goal.x, 0.68, curLevel.goal.z);
+        rocket.scale.setScalar(0.7);
+        innerBoard.add(rocket);
+        missionRocket = rocket;
+      }
+
       // 7. Collectible Crystals on Brass Pedestals
       const gemGeo = new THREE.OctahedronGeometry(0.38, 0);
       curLevel.gems.forEach((gem) => {
@@ -1383,6 +1405,17 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         const mat = halo?.material as THREE.MeshBasicMaterial | undefined;
         if (mat) mat.opacity = 0.25 + 0.15 * (1 + Math.sin(time * 0.003 + index * Math.PI)) / 2;
       });
+
+      if (missionRocket) {
+        const rocket = missionRocket as THREE.Group;
+        if (statusRef.current === 'won') {
+          rocket.position.y = Math.min(13, rocket.position.y + dt * 5.5);
+          rocket.rotation.y += dt * 3;
+        } else {
+          rocket.position.y = 0.68;
+          rocket.rotation.y = Math.sin(time * 0.0014) * 0.1;
+        }
+      }
 
       // Gem hover & spin
       const colGems = collectedGemsRef.current;
