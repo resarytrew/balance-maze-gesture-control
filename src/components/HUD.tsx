@@ -16,13 +16,17 @@ import {
   XCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { MissionState } from '../game/mission.ts';
+import { chapterIndex, type MissionState } from '../game/mission.ts';
 import type { GameStatus, LevelConfig, TiltState } from '../game/types.ts';
 
 interface HUDProps {
   missionMode: boolean;
   missionState: MissionState;
   onStartMission: () => void;
+  onSelectMissionChapter: (chapter: number) => void;
+  missionChapters: LevelConfig[];
+  completedChapters: number[];
+  onActivateStasis: () => void;
   presentationMode?: boolean;
   level: LevelConfig;
   allLevels: LevelConfig[];
@@ -46,6 +50,10 @@ export const HUD: React.FC<HUDProps> = ({
   missionMode,
   missionState,
   onStartMission,
+  onSelectMissionChapter,
+  missionChapters,
+  completedChapters,
+  onActivateStasis,
   presentationMode = false,
   level,
   allLevels,
@@ -66,6 +74,8 @@ export const HUD: React.FC<HUDProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const currentChapter = chapterIndex(level);
+  const allChaptersDone = completedChapters.length >= missionChapters.length;
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -89,7 +99,7 @@ export const HUD: React.FC<HUDProps> = ({
   }, [gameStatus]);
 
   const subtitle = missionMode
-    ? 'Миссия 01 — Сигнал с Сатурна'
+    ? level.name
     : level.id === 99
       ? 'Random Maze'
       : `Level ${Math.max(1, currentLevelIndex + 1)} — ${level.name}`;
@@ -214,18 +224,58 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       )}
 
-      {!presentationMode && <div className="bm-mission-panel">
-        {!missionMode ? (
-          <button type="button" onClick={onStartMission} style={{fontWeight:700,fontSize:13,letterSpacing:'.04em'}}>🚀 НАЧАТЬ КОСМИЧЕСКУЮ МИССИЮ</button>
-        ) : (
-          <div aria-live="polite">
-            <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>🚀 ЗАДАНИЕ ЭКСПЕДИЦИИ</div>
-            <div style={{fontSize:12,color:'#c9d6ed'}}>Маяки: {missionState.beacons}/2 · Порталы: {missionState.hops}</div>
-            <div style={{fontSize:12,color:'#d9c9a9',marginTop:5}}>{missionState.beacons === 2 ? 'Маяки активированы! Доберитесь до станции.' : 'Сначала зажгите оба маяка, затем найдите станцию.'}</div>
-            <div style={{fontSize:11,color:'#a5b5d2',marginTop:6}}>Цветные кольца — порталы. Тёмные лунки опасны!</div>
-          </div>
-        )}
-      </div>}
+      {!presentationMode && (
+        <div className="bm-mission-panel" aria-label="Космическое путешествие">
+          <div className="bm-mission-eyebrow">✦ КОСМИЧЕСКАЯ ЭКСПЕДИЦИЯ</div>
+          {!missionMode ? (
+            <>
+              <div className="bm-mission-headline">Три загадочные планеты ждут тебя</div>
+              <p className="bm-mission-description">Спасай маяки, проходи порталы и освой управление временем.</p>
+              <button type="button" onClick={onStartMission} className="bm-mission-primary">
+                🚀 НАЧАТЬ ПУТЕШЕСТВИЕ
+              </button>
+              {completedChapters.length > 0 && (
+                <div className="bm-chapter-selector" aria-label="Открытые миссии">
+                  {missionChapters.map((chapter, i) => (
+                    <button key={chapter.id} type="button"
+                      disabled={i > 0 && !completedChapters.includes(i - 1)}
+                      onClick={() => onSelectMissionChapter(i)}
+                      title={chapter.name}
+                      className="bm-chapter-dot">
+                      {completedChapters.includes(i) ? '★' : i+1}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="bm-mission-headline">
+                Этап {currentChapter + 1}/{missionChapters.length} · {currentChapter === 0 ? 'Сатурн' : currentChapter === 1 ? 'Луна' : 'Туманность'}
+              </div>
+              <div className="bm-mission-progress">
+                {missionChapters.map((chapter, i) => (
+                  <span key={chapter.id} className={`bm-mission-progress-node ${completedChapters.includes(i) ? 'is-done' : ''} ${i === currentChapter ? 'is-active' : ''}`}>
+                    {completedChapters.includes(i) ? '★' : i+1}
+                  </span>
+                ))}
+              </div>
+              <div className="bm-mission-beacons">✧ Маяки: {missionState.beacons}/{level.gems.length} <span>· Прыжки: {missionState.hops}</span></div>
+              <p className="bm-mission-description" aria-live="polite">{missionState.message}</p>
+              <button type="button" className="bm-stasis-button"
+                onClick={onActivateStasis}
+                disabled={missionState.charges === 0 || missionState.stasisRemaining > 0 || gameStatus !== 'playing'}>
+                <span>⌛</span>
+                {missionState.stasisRemaining > 0
+                  ? `ЗАМЕДЛЕНИЕ · ${missionState.stasisRemaining.toFixed(1)} с`
+                  : `ЗАМЕДЛИТЬ ВРЕМЯ · ${missionState.charges} зар.`}
+              </button>
+              <div className="bm-mission-tip">Пробел или кнопка · маяки пополняют заряды</div>
+              {allChaptersDone && <div className="bm-mission-tip">★ Экспедиция пройдена!</div>}
+            </>
+          )}
+        </div>
+      )}
 
       {gameStatus === 'won' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
@@ -233,8 +283,8 @@ export const HUD: React.FC<HUDProps> = ({
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#b4822d] bg-[radial-gradient(circle_at_30%_30%,rgba(255,211,141,0.2),rgba(168,109,23,0.15))] text-amber-300">
               <Trophy size={30} />
             </div>
-            <h2 className="text-2xl font-semibold" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>Level Complete</h2>
-            <p className="mt-1 text-sm text-[#c9b48b]">Your marble reached the goal.</p>
+            <h2 className="text-2xl font-semibold" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>{missionMode ? (currentChapter === missionChapters.length - 1 ? '🚀 Экспедиция завершена!' : '🌟 Миссия выполнена!') : 'Level Complete'}</h2>
+            <p className="mt-1 text-sm text-[#c9b48b]">{missionMode ? (currentChapter === missionChapters.length - 1 ? 'Все миры спасены! Экспедиция завершена.' : 'Маяки спасены! Следующая планета ждёт.') : 'Your marble reached the goal.'}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-2xl border border-[#403120] bg-black/20 p-3">
@@ -242,7 +292,7 @@ export const HUD: React.FC<HUDProps> = ({
                 <div className="mt-1 font-mono text-lg font-semibold text-white">{formatTime(elapsedTime)}</div>
               </div>
               <div className="rounded-2xl border border-[#403120] bg-black/20 p-3">
-                <div className="text-xs uppercase tracking-[0.08em] text-[#9f8964]">Gems</div>
+                <div className="text-xs uppercase tracking-[0.08em] text-[#9f8964]">{missionMode ? 'Маяки' : 'Gems'}</div>
                 <div className="mt-1 font-mono text-lg font-semibold text-white">{collectedGemsCount}/{totalGemsCount}</div>
               </div>
             </div>
@@ -258,7 +308,7 @@ export const HUD: React.FC<HUDProps> = ({
                 Restart
               </button>
               <button onClick={onNextLevel} className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#d89a34] bg-[#c78213] px-4 py-3 font-semibold text-white transition hover:bg-[#d08d1d]">
-                Next <ArrowRight size={16} />
+                {missionMode ? (currentChapter === missionChapters.length - 1 ? 'В классический режим' : 'К следующей планете') : 'Next'} <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -290,7 +340,7 @@ export const HUD: React.FC<HUDProps> = ({
               <p><strong className="text-white">Goal:</strong> tilt the wooden board and guide the metal ball to the target.</p>
               <p><strong className="text-white">Camera mode:</strong> raise both hands in front of the camera. Use the right panel to choose a control style and sensitivity.</p>
               <p><strong className="text-white">Mouse / WASD:</strong> use them as fallback controls if the room lighting is poor.</p>
-              <p><strong className="text-white">Gems:</strong> collect crystals on classic levels. In Cosmic Mission activate both rescue beacons to unlock victory.</p>
+              <p><strong className="text-white">Gems:</strong> collect crystals on classic levels. In Cosmic Voyage activate each stage's rescue beacons to unlock victory; beacons also charge the time-dilation ability. Press Space or use the mission panel to slow time.</p>
               <p><strong className="text-white">Shortcuts:</strong> R — restart, C — auto calibrate, P — presentation mode.</p>
             </div>
             <button onClick={() => setShowHelpModal(false)} className="mt-6 w-full rounded-2xl border border-[#4f3c22] bg-[#16110d] px-4 py-3 font-semibold text-[#f1dfbd] transition hover:bg-[#241911]">
