@@ -1,6 +1,7 @@
 import type { HandPoint, HandTrackingState, TiltState } from './types.ts';
 import { computeTiltFromHands } from './physics.ts';
 import { clampBoardTilt, MAX_TILT_RAD } from './mechanics.ts';
+import { fingerPinchRatio, PinchGestureGate } from './pinchGesture.ts';
 
 export type TrackingMode = 'camera' | 'mouse' | 'keyboard';
 export type SensitivityPreset = 'precision' | 'normal' | 'fast';
@@ -8,6 +9,8 @@ export type ControlProfile = 'virtual-board' | 'height-lever';
 
 export interface HandTrackerCallbacks {
   onStateUpdate: (state: HandTrackingState) => void;
+  /** A deliberate pinch on either hand; fires once until fingers open again. */
+  onPinchGesture?: () => void;
   onError?: (err: Error) => void;
 }
 
@@ -56,6 +59,7 @@ export class HandTracker {
   private calibrationSamples: { leftY: number; rightY: number; avgY: number; distX: number; depth: number }[] = [];
   private calibrationStartTime: number = 0;
   private readonly calibrationHoldMs = 2000;
+  private readonly pinchGate = new PinchGestureGate();
   private lastVideoTime = -1;
   private lastVideoFrameAt = 0;
   private handednessToSide = new Map<string, 'left' | 'right'>();
@@ -208,6 +212,7 @@ export class HandTracker {
     this.state.calibrationProgress = 0;
     this.calibrationSamples = [];
     this.calibrationStartTime = 0;
+    this.pinchGate.reset();
   }
 
   public stopCamera(notify = true) {
@@ -227,6 +232,7 @@ export class HandTracker {
     if (mode !== 'camera' && autoStopCamera) this.stopCamera(false);
     // A camera mode with no live stream cannot silently reuse stale hand state.
     this.state.trackingMode = mode === 'camera' && !this.stream ? 'mouse' : mode;
+    if (this.state.trackingMode !== 'camera') this.pinchGate.reset();
     this.state.rawTilt = { pitch: 0, roll: 0 };
     this.state.smoothTilt = { pitch: 0, roll: 0 };
     this.notifyState(true);
@@ -399,6 +405,7 @@ export class HandTracker {
           }
         } else if (now - this.lastVideoFrameAt > this.lostHandGracePeriod) {
           this.assignHandsContinuity([]);
+          this.pinchGate.update([], now);
         }
         if (!this.state.hasLeftHand || !this.state.hasRightHand) {
           this.state.rawTilt = { pitch: 0, roll: 0 };
@@ -454,10 +461,13 @@ export class HandTracker {
       this.state.engine = 'mediapipe';
       try {
         const results = this.mpLandmarker.detectForVideo(this.videoEl, performance.now());
+        const pinchRatios: number[] = [];
         const points: HandPoint[] = (results.landmarks || []).map((marks: any) => {
           const videoWidth = this.videoEl?.videoWidth || 640;
           const videoHeight = this.videoEl?.videoHeight || 480;
           const scale = Math.max(videoWidth, videoHeight);
+          const ratio = fingerPinchRatio(marks, videoWidth, videoHeight);
+          if (ratio !== null) pinchRatios.push(ratio);
           const span = (a: number, b: number) => Math.hypot(
             (marks[a].x - marks[b].x) * videoWidth,
             (marks[a].y - marks[b].y) * videoHeight,
@@ -474,13 +484,25 @@ export class HandTracker {
         );
         this.assignHandsContinuity(points, labels);
         this.updateTiltFromDetectedHands(deadzone);
+        // Use only real finger landmarks. An optical fallback cannot report
+        // fingertips. Keep the two-hand board control fully functional.
+        const pinches = this.state.trackingMode === 'camera' &&
+          this.state.isCameraActive && !this.state.isCalibrating &&
+          this.state.hasLeftHand && this.state.hasRightHand
+          ? pinchRatios : [];
+        if (this.pinchGate.update(pinches, performance.now())) {
+          this.callbacks.onPinchGesture?.();
+        }
       } catch (err) {
         console.warn('MediaPipe frame detection failed:', err);
         this.assignHandsContinuity([]);
+        this.pinchGate.update([], performance.now());
         this.state.rawTilt = { pitch: 0, roll: 0 };
       }
       return;
     }
+    // Optical fallback cannot observe fingertips; never synthesize pinch events.
+    this.pinchGate.update([], performance.now());
     // Optical fallback is used only when loading the hand model failed entirely.
     if (this.isMpLoading) {
       this.assignHandsContinuity([]);
