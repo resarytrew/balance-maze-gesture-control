@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COSMIC_MISSION, PORTALS, createMissionState, stepMission } from './mission.ts';
-import { BALL_RADIUS } from './physics.ts';
+import { BALL_RADIUS, stepPhysics } from './physics.ts';
+import { BOARD_SIZE, PLAYFIELD_INSET } from './mechanics.ts';
+import { validateLevelPath } from './validator.ts';
 import type { BallState } from './types.ts';
 
 function ball(x: number, z: number): BallState {
@@ -34,4 +36,28 @@ test('portals preserve speed and use cooldown to avoid looping', () => {
   assert.equal(first.ball.vz, start.vz);
   const second = stepMission(first.state, first.ball, 1/120);
   assert.equal(second.teleported, false);
+});
+
+test('mission shares the physical 18-unit tray and all objects fit inside it', () => {
+  assert.equal(COSMIC_MISSION.boardSize, BOARD_SIZE);
+  const half = BOARD_SIZE / 2 - PLAYFIELD_INSET - BALL_RADIUS;
+  const inside = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z)) <= half;
+  assert.ok(inside(COSMIC_MISSION.startPos.x, COSMIC_MISSION.startPos.z));
+  assert.ok(inside(COSMIC_MISSION.goal.x, COSMIC_MISSION.goal.z));
+  for (const item of [...COSMIC_MISSION.gems, ...COSMIC_MISSION.holes, ...PORTALS]) {
+    assert.ok(inside(item.x, item.z), `object outside physical tray: ${JSON.stringify(item)}`);
+  }
+});
+test('mission route and both rescue beacons are reachable', () => {
+  const result = validateLevelPath(COSMIC_MISSION, BALL_RADIUS);
+  assert.ok(result.isSolvable, result.reason ?? 'mission route is blocked');
+  assert.equal(result.reachableGemsCount, COSMIC_MISSION.gems.length);
+});
+test('ball collides with the physical tray boundary instead of entering frame', () => {
+  const half = BOARD_SIZE / 2 - PLAYFIELD_INSET - BALL_RADIUS;
+  let start = ball(half - 0.02, 0);
+  start.vx = 12;
+  start.wz = -start.vx / BALL_RADIUS;
+  const result = stepPhysics(start, { pitch: 0, roll: 0 }, COSMIC_MISSION, new Set(), 1 / 60);
+  assert.ok(result.ball.x <= half + 1e-8, `ball entered frame at ${result.ball.x}`);
 });
