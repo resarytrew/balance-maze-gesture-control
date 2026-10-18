@@ -67,6 +67,7 @@ export default function App() {
   const [collectedGems, setCollectedGems] = useState<Set<string>>(new Set());
   const [isMuted, setIsMuted] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [cosmicEvent, setCosmicEvent] = useState<{ id: number; text: string } | null>(null);
   const [impactSparks, setImpactSparks] = useState<{
     x: number;
     z: number;
@@ -264,6 +265,7 @@ export default function App() {
     if (next === missionRef.current) return;
     missionRef.current = next;
     setMissionUI(next);
+    setCosmicEvent({ id: Date.now(), text: '⏳ ВРЕМЯ ЗАМЕДЛЕНО!' });
     soundEngine.playGemCollect();
   }, []);
 
@@ -359,7 +361,13 @@ export default function App() {
           missionRef.current = event.state;
           if (event.changed) {
             setMissionUI(event.state);
-            if (event.teleported || event.collectedBeacon) soundEngine.playGemCollect();
+            if (event.teleported || event.collectedBeacon) {
+              soundEngine.playGemCollect();
+              setCosmicEvent({
+                id: now + steps,
+                text: event.teleported ? '✨ ГИПЕРПРЫЖОК!' : '🌟 МАЯК СПАСЁН! +1 ЗАРЯД',
+              });
+            }
           }
         }
         if (step.collisionEvents.length) {
@@ -380,6 +388,7 @@ export default function App() {
         }
         if (step.reachedGoal && gameStatusRef.current === 'playing' && (!missionModeRef.current || missionRef.current.beacons >= currentLevelRef.current.gems.length)) {
           gameStatusRef.current = 'won';
+          if (missionModeRef.current) setCosmicEvent({ id: now + steps, text: '🚀 МИССИЯ ВЫПОЛНЕНА!' });
           soundEngine.playWinFanfare();
           setGameStatus('won');
           const lvlId = currentLevelRef.current.id;
@@ -468,6 +477,12 @@ export default function App() {
         onMouseTilt={handleMouseTilt}
         trackingMode={handState.trackingMode}
       />
+
+      {missionMode && cosmicEvent && (
+        <div className="bm-cosmic-event" key={cosmicEvent.id} aria-live="polite" role="status">
+          {cosmicEvent.text}
+        </div>
+      )}
 
       {/* Floating Webcam & Dual-Hand Detection Preview */}
       <WebcamOverlay
