@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a new level, ability, accessibility option, or improvement
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We love playful ideas, especially ones that make gesture controls more expressive without sacrificing the marble's physical feel.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this improve?
+      description: Explain the player need or limitation.
+      placeholder: "I want the third chapter to feel more surprising because..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed feature
+      description: How do you imagine this working?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or references
+      description: Optional sketches, examples, or related ideas.

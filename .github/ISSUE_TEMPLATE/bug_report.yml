@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a problem with gameplay, tracking, physics, or the interface
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Balance Maze! Please include enough detail to reproduce the issue.
+        Never upload webcam recordings showing private information without reviewing them first.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+      placeholder: "The marble moves under the side frame when..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the live demo
+        2. Select Cosmic Voyage
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: controls
+    attributes:
+      label: Control mode
+      options:
+        - Webcam / MediaPipe
+        - Webcam / optical fallback
+        - Mouse
+        - Keyboard
+        - Not related to controls
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: "Chrome 155, Windows 11"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs, and other details
+      description: Add screenshots, console errors, or a recording if helpful (remove personal information first).
