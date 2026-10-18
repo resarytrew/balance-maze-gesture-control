@@ -74,6 +74,20 @@ export const HUD: React.FC<HUDProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showVictory, setShowVictory] = useState(false);
+  React.useEffect(() => {
+    if (gameStatus !== 'won') {
+      setShowVictory(false);
+      return;
+    }
+    if (!missionMode) {
+      setShowVictory(true);
+      return;
+    }
+    setShowVictory(false);
+    const timer = window.setTimeout(() => setShowVictory(true), 1900);
+    return () => window.clearTimeout(timer);
+  }, [gameStatus, missionMode, level.id]);
   const currentChapter = chapterIndex(level);
   const allChaptersDone = completedChapters.length >= missionChapters.length;
 
@@ -277,7 +291,7 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       )}
 
-      {gameStatus === 'won' && (
+      {gameStatus === 'won' && showVictory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-[28px] border border-[#9c6a1e]/65 bg-[linear-gradient(180deg,rgba(20,14,10,0.98),rgba(30,21,13,0.98))] p-6 text-center text-[#f4e6ca] shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#b4822d] bg-[radial-gradient(circle_at_30%_30%,rgba(255,211,141,0.2),rgba(168,109,23,0.15))] text-amber-300">
