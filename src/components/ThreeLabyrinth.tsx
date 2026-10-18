@@ -990,7 +990,7 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       floorShape.closePath();
       curLevel.holes.forEach(hole => {
         const opening = new THREE.Path();
-        opening.absarc(hole.x, hole.z, hole.radius, 0, Math.PI * 2, true);
+        opening.absarc(hole.x, hole.z, hole.radius * (curLevel.id === 100 ? 1 : 0.76), 0, Math.PI * 2, true);
         floorShape.holes.push(opening);
       });
       const floorGeo = new THREE.ExtrudeGeometry(floorShape, {
@@ -1175,17 +1175,17 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
         const holeGroup = new THREE.Group();
 
         // Dark cylinder drop shaft
-        const shaftGeo = new THREE.CylinderGeometry(hole.radius, hole.radius * 0.92, 0.9, 40, 1, true);
+        const shaftGeo = new THREE.CylinderGeometry(hole.radius * (curLevel.id === 100 ? 1 : 0.75), hole.radius * (curLevel.id === 100 ? 0.92 : 0.65), 0.9, 40, 1, true);
         const shaftMesh = new THREE.Mesh(shaftGeo, holeMat);
         shaftMesh.position.y = -0.45;
         holeGroup.add(shaftMesh);
-        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * 0.92, 40), holeMat);
+        const bottom = new THREE.Mesh(new THREE.CircleGeometry(hole.radius * (curLevel.id === 100 ? 0.92 : 0.65), 40), holeMat);
         bottom.rotation.x = -Math.PI / 2;
         bottom.position.y = -0.9;
         holeGroup.add(bottom);
 
         // Countersunk Brass Bezel (Torus)
-        const bezelGeo = new THREE.TorusGeometry(hole.radius + 0.04, 0.095, 14, 40);
+        const bezelGeo = new THREE.TorusGeometry(curLevel.id === 100 ? hole.radius + 0.04 : hole.radius * 0.78, 0.095, 14, 40);
         const bezelMesh = new THREE.Mesh(bezelGeo, brassMat);
         bezelMesh.rotation.x = Math.PI / 2;
         bezelMesh.position.y = 0.022;
