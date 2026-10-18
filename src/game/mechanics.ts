@@ -2,6 +2,8 @@ import type { GameStatus, LevelConfig, TiltState } from './types.ts';
 
 /** One physical tabletop instrument, independent of level difficulty. */
 export const BOARD_SIZE = 18;
+/** The playable centre always remains inside the wood-tray rim and inlay. */
+export const PLAYFIELD_INSET = 0.42;
 /** Drueke No.1960 physical height ~3.75 in (source refers to total product envelope). */
 export const DRUEKE_WIDTH_IN = 13;
 export const DRUEKE_HEIGHT_IN = 3.75;

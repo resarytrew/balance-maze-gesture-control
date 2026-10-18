@@ -88,9 +88,11 @@ export const HUD: React.FC<HUDProps> = ({
     }
   }, [gameStatus]);
 
-  const subtitle = level.id === 99
-    ? 'Random Maze'
-    : `Level ${Math.max(1, currentLevelIndex + 1)} — ${level.name}`;
+  const subtitle = missionMode
+    ? 'Миссия 01 — Сигнал с Сатурна'
+    : level.id === 99
+      ? 'Random Maze'
+      : `Level ${Math.max(1, currentLevelIndex + 1)} — ${level.name}`;
 
   return (
     <>
@@ -212,15 +214,15 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       )}
 
-      {!presentationMode && <div style={{position:'fixed',top:84,left:18,zIndex:35,maxWidth:300,padding:12,border:'1px solid rgba(184,146,77,.62)',borderRadius:16,background:'rgba(17,21,33,.91)',color:'#fbe6ba',boxShadow:'0 8px 36px #0008'}}>
+      {!presentationMode && <div className="bm-mission-panel">
         {!missionMode ? (
           <button type="button" onClick={onStartMission} style={{fontWeight:700,fontSize:13,letterSpacing:'.04em'}}>🚀 НАЧАТЬ КОСМИЧЕСКУЮ МИССИЮ</button>
         ) : (
           <div aria-live="polite">
-            <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>🚀 МИССИЯ: СПАСЕНИЕ НА САТУРНЕ</div>
+            <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>🚀 ЗАДАНИЕ ЭКСПЕДИЦИИ</div>
             <div style={{fontSize:12,color:'#c9d6ed'}}>Маяки: {missionState.beacons}/2 · Порталы: {missionState.hops}</div>
             <div style={{fontSize:12,color:'#d9c9a9',marginTop:5}}>{missionState.beacons === 2 ? 'Маяки активированы! Доберитесь до станции.' : 'Сначала зажгите оба маяка, затем найдите станцию.'}</div>
-            <div style={{fontSize:11,color:'#a5b5d2',marginTop:6}}>Фиолетовые кольца — телепорты. Чёрные дыры опасны!</div>
+            <div style={{fontSize:11,color:'#a5b5d2',marginTop:6}}>Цветные кольца — порталы. Тёмные лунки опасны!</div>
           </div>
         )}
       </div>}

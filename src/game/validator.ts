@@ -1,5 +1,6 @@
 import type { LevelConfig } from './types.ts';
 import { getClosestPointOnSegment } from './physics.ts';
+import { PLAYFIELD_INSET } from './mechanics.ts';
 
 export interface ValidationResult {
   isSolvable: boolean;
@@ -21,7 +22,7 @@ export function validateLevelPath(
   ballRadius = 0.48,
   step = 0.15
 ): ValidationResult {
-  const halfSize = level.boardSize / 2 - 0.42;
+  const halfSize = level.boardSize / 2 - PLAYFIELD_INSET;
   const minCoord = -halfSize;
   const maxCoord = halfSize;
   const span = maxCoord - minCoord;

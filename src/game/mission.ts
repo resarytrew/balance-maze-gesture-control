@@ -1,9 +1,13 @@
 import type { BallState, LevelConfig } from './types.ts';
+import { BOARD_SIZE, fitLevelToBoard } from './mechanics.ts';
 
 /** Self-contained first mission: rescue beacon activation + two-way wormhole.
  * No changes to Classic Maze levels or their physics.
  */
-export const COSMIC_MISSION: LevelConfig = {
+// Missions share the same 18-unit physical tray as the classic levels.
+const SOURCE_MISSION_SIZE = 20;
+const MISSION_SCALE = BOARD_SIZE / SOURCE_MISSION_SIZE;
+export const COSMIC_MISSION: LevelConfig = fitLevelToBoard({
   id: 100,
   name: 'Миссия 01: Сигнал с Сатурна',
   difficulty: 'easy',
@@ -23,11 +27,11 @@ export const COSMIC_MISSION: LevelConfig = {
     { id: 'wall-a', x1: -7, z1: 2.5, x2: -1.5, z2: 2.5, thickness: 0.35 },
     { id: 'wall-b', x1: 0.7, z1: -2.4, x2: 7, z2: -2.4, thickness: 0.35 },
   ],
-};
+});
 
 export const PORTALS = [
-  { x: -1.0, z: 3.8 },
-  { x: 1.9, z: -0.8 },
+  { x: -1.0 * MISSION_SCALE, z: 3.8 * MISSION_SCALE },
+  { x: 1.9 * MISSION_SCALE, z: -0.8 * MISSION_SCALE },
 ] as const;
 
 export interface MissionState {

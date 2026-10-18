@@ -155,3 +155,27 @@
   .bm-panel-body-minimized {display:none;}
 .bm-camera-preview {height:175px;}
 }
+
+/* Mission controls are placed after the title plaque, never over it. */
+.bm-mission-panel {
+  position: fixed;
+  z-index: 29;
+  top: calc(clamp(12px, 2.4vh, 23px) + 85px + 12px);
+  left: clamp(12px, 2.5vw, 43px);
+  width: min(325px, calc(100vw - 28px));
+  padding: 13px 15px;
+  color: #f7dfb4;
+  background: linear-gradient(145deg, rgba(15,25,42,.95), rgba(8,15,28,.95));
+  border: 1px solid rgba(188,147,86,.66);
+  border-radius: 14px;
+  box-shadow: 0 12px 38px rgba(0,0,0,.52);
+  backdrop-filter: blur(7px);
+}
+.bm-mission-panel button { text-align: left; cursor: pointer; color: #f7db9c; }
+.bm-mission-panel button:hover { color: #fff5d7; }
+@media (max-width: 900px) {
+  .bm-mission-panel { top: 98px; left: 12px; width: min(280px, calc(100vw - 24px)); }
+}
+@media (max-width: 690px) {
+  .bm-mission-panel { top: 136px; max-height: 130px; overflow-y: auto; width: min(280px, calc(100vw - 24px)); }
+}
