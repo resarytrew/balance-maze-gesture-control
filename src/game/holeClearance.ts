@@ -2,7 +2,7 @@ import type { Hole, LevelConfig } from './types.ts';
 import { getClosestPointOnSegment } from './physics.ts';
 
 /** Matches the brass rim drawn by ThreeLabyrinth.tsx. */
-export const holeBezelOuterRadius = (hole: Hole) => hole.radius + 0.04 + 0.095;
+export const holeBezelOuterRadius = (hole: Hole) => hole.radius * 0.78 + 0.095;
 export const HOLE_DECORATIVE_GAP = 0.28;
 
 /** Visual clearance is independent of ball-centre reachability. */
