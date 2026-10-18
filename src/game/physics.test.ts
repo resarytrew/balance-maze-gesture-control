@@ -104,7 +104,7 @@ test('a freely rolling ball coasts on level lacquer without artificial drag', ()
   const ball = createTestBall(0, 0, 2, 0);
   ball.wz = -ball.vx / ball.radius;
   const result = stepPhysics(ball, { pitch: 0, roll: 0 }, noWalls, new Set(), 0.4);
-  assert.ok(result.ball.vx < 2 && result.ball.vx > 1.6, `expected controlled rolling resistance, got ${result.ball.vx}`);
+  assert.ok(result.ball.vx <= 2 && result.ball.vx > 1.98, `expected controlled rolling resistance, got ${result.ball.vx}`);
   assert.ok(result.ball.slip < 0.03, `clean rolling should retain no-slip contact, got ${result.ball.slip}`);
 });
 
@@ -240,4 +240,27 @@ test('falling progress uses full dt, not individual micro-step', () => {
   const fallingBall = { ...createTestBall(), isFalling: true, fallProgress: 0 };
   const result = stepPhysics(fallingBall, { pitch: 0, roll: 0 }, testLevel, new Set(), 0.025);
   assert.ok(Math.abs(result.ball.fallProgress - 0.07) < 0.001, `got ${result.ball.fallProgress}`);
+});
+
+test('rolling on nearly level hardwood retains most speed after one second', () => {
+  const empty = { ...testLevel, walls: [], holes: [], gems: [], goal: { x: 8, z: 8, radius: 0.2 } };
+  let ball = createTestBall(2, 0);
+  ball.wz = -ball.vx / ball.radius;
+  for (let i = 0; i < 120; i++) {
+    ball = stepPhysics(ball, { pitch: 0, roll: 0 }, empty, new Set(), 1 / 120).ball;
+  }
+  assert.ok(ball.vx > 1.7, `rolling resistance should be small: ${ball.vx}`);
+});
+
+test('critical gimbal approaches a target without exceeding mechanical limit', async () => {
+  const { stepBoardTiltDynamics } = await import('./physics.ts');
+  let pose = { pitch: 0, roll: 0 };
+  let speed = { pitch: 0, roll: 0 };
+  for (let i = 0; i < 120; i++) {
+    const step = stepBoardTiltDynamics(pose, speed, { pitch: 0.12, roll: 0.10 }, 1/120);
+    pose = step.tilt;
+    speed = step.angularVelocity;
+    assert.ok(Math.hypot(pose.pitch, pose.roll) <= MAX_TILT_RAD + 1e-9);
+  }
+  assert.ok(Math.hypot(pose.pitch, pose.roll) > 0.13);
 });
