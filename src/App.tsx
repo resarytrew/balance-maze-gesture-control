@@ -10,13 +10,23 @@ import { ThreeLabyrinth } from './components/ThreeLabyrinth.tsx';
 import { WebcamOverlay } from './components/WebcamOverlay.tsx';
 import { HUD } from './components/HUD.tsx';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { COSMIC_MISSION, createMissionState, stepMission, type MissionState } from './game/mission.ts';
+import { COSMIC_MISSIONS, chapterIndex, createMissionState, stepMission, activateStasis, STASIS_TIME_SCALE, type MissionState } from './game/mission.ts';
 
 export default function App() {
   const [levelIndex, setLevelIndex] = useState(0);
   const [customLevel, setCustomLevel] = useState<LevelConfig | null>(null);
   const [missionMode, setMissionMode] = useState(false);
   const [missionUI, setMissionUI] = useState<MissionState>(() => createMissionState());
+  const [completedChapters, setCompletedChapters] = useState<number[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('balance-maze-cosmic-completed') || '[]');
+      return Array.isArray(stored) ? stored.filter((n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) < COSMIC_MISSIONS.length) : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('balance-maze-cosmic-completed', JSON.stringify(completedChapters)); }
+    catch { /* local storage may be disabled */ }
+  }, [completedChapters]);
 
   const currentLevel = customLevel || LEVELS[levelIndex];
 
@@ -57,6 +67,7 @@ export default function App() {
   const [collectedGems, setCollectedGems] = useState<Set<string>>(new Set());
   const [isMuted, setIsMuted] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [cosmicEvent, setCosmicEvent] = useState<{ id: number; text: string } | null>(null);
   const [impactSparks, setImpactSparks] = useState<{
     x: number;
     z: number;
@@ -227,14 +238,15 @@ export default function App() {
     setGameStatus('playing');
   }, []);
 
-  const startCosmicMission = useCallback(() => {
-    setCustomLevel(COSMIC_MISSION);
-    currentLevelRef.current = COSMIC_MISSION;
+  const startCosmicMission = useCallback((chapter = 0) => {
+    const level = COSMIC_MISSIONS[Math.max(0, Math.min(chapter, COSMIC_MISSIONS.length - 1))];
+    setCustomLevel(level);
+    currentLevelRef.current = level;
     setMissionMode(true);
     missionModeRef.current = true;
     missionRef.current = createMissionState();
     setMissionUI(missionRef.current);
-    const initial = createInitialBall(COSMIC_MISSION);
+    const initial = createInitialBall(level);
     ballRef.current = initial;
     setBall(initial);
     collectedGemsRef.current = new Set();
@@ -246,6 +258,44 @@ export default function App() {
     gameStatusRef.current = 'playing';
     setGameStatus('playing');
   }, []);
+
+  const activateMissionPower = useCallback(() => {
+    if (!missionModeRef.current || gameStatusRef.current !== 'playing') return;
+    const next = activateStasis(missionRef.current);
+    if (next === missionRef.current) return;
+    missionRef.current = next;
+    setMissionUI(next);
+    setCosmicEvent({ id: Date.now(), text: '⏳ ВРЕМЯ ЗАМЕДЛЕНО!' });
+    soundEngine.playGemCollect();
+  }, []);
+
+  // Press space to trigger the special ability in any control mode.
+  useEffect(() => {
+    const onSpace = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.code !== 'Space' || event.repeat ||
+          target?.closest('button,input,textarea,[contenteditable=true]')) return;
+      if (!missionModeRef.current) return;
+      event.preventDefault();
+      activateMissionPower();
+    };
+    window.addEventListener('keydown', onSpace);
+    return () => window.removeEventListener('keydown', onSpace);
+  }, [activateMissionPower]);
+
+  const advanceLevel = useCallback(() => {
+    if (!missionModeRef.current) {
+      handleNextLevel();
+      return;
+    }
+    const chapter = chapterIndex(currentLevelRef.current);
+    if (chapter >= 0 && chapter + 1 < COSMIC_MISSIONS.length) {
+      startCosmicMission(chapter + 1);
+    } else {
+      // Finished the campaign: return to the classic toy, preserving badges.
+      handleSelectLevel(0);
+    }
+  }, [handleNextLevel, handleSelectLevel, startCosmicMission]);
 
   // Toggle audio mute
   const handleToggleSound = useCallback(() => {
@@ -296,17 +346,28 @@ export default function App() {
         tiltRef.current = dynamics.tilt;
         tiltVelocityRef.current = dynamics.angularVelocity;
         if (gameStatusRef.current === 'playing') elapsedTimeRef.current += FIXED_DT;
+        // Time dilation is an intentional adventure power, not a tweak to
+        // physical friction, wall collisions or the contact solver.
+        const simulationDt = missionModeRef.current && missionRef.current.stasisRemaining > 0
+          ? FIXED_DT * STASIS_TIME_SCALE
+          : FIXED_DT;
         const step = stepPhysics(
-          ballRef.current, tiltRef.current, currentLevelRef.current, collectedGemsRef.current, FIXED_DT
+          ballRef.current, tiltRef.current, currentLevelRef.current, collectedGemsRef.current, simulationDt
         );
         ballRef.current = step.ball;
         if (missionModeRef.current && !step.ball.isFalling) {
-          const event = stepMission(missionRef.current, ballRef.current, FIXED_DT);
+          const event = stepMission(missionRef.current, ballRef.current, FIXED_DT, currentLevelRef.current);
           ballRef.current = event.ball;
           missionRef.current = event.state;
           if (event.changed) {
             setMissionUI(event.state);
-            if (event.teleported) soundEngine.playGemCollect();
+            if (event.teleported || event.collectedBeacon) {
+              soundEngine.playGemCollect();
+              setCosmicEvent({
+                id: now + steps,
+                text: event.teleported ? '✨ ГИПЕРПРЫЖОК!' : '🌟 МАЯК СПАСЁН! +1 ЗАРЯД',
+              });
+            }
           }
         }
         if (step.collisionEvents.length) {
@@ -325,12 +386,17 @@ export default function App() {
           setGameStatus(holeState);
           if (holeState === 'fallen') break;
         }
-        if (step.reachedGoal && gameStatusRef.current === 'playing' && (!missionModeRef.current || missionRef.current.beacons >= 2)) {
+        if (step.reachedGoal && gameStatusRef.current === 'playing' && (!missionModeRef.current || missionRef.current.beacons >= currentLevelRef.current.gems.length)) {
           gameStatusRef.current = 'won';
+          if (missionModeRef.current) setCosmicEvent({ id: now + steps, text: '🚀 МИССИЯ ВЫПОЛНЕНА!' });
           soundEngine.playWinFanfare();
           setGameStatus('won');
           const lvlId = currentLevelRef.current.id;
-          if (lvlId !== 99 && lvlId !== 100) { // random mazes are not comparable with each other
+          if (missionModeRef.current) {
+            const chapter = chapterIndex(currentLevelRef.current);
+            if (chapter >= 0) setCompletedChapters(prev => prev.includes(chapter) ? prev : [...prev, chapter]);
+          }
+          if (lvlId !== 99 && lvlId < 100) { // random and story missions have separate records
             const finalTime = elapsedTimeRef.current;
             setBestTimes(prev => {
               const best = prev[lvlId];
@@ -345,6 +411,9 @@ export default function App() {
         lastHudUpdate = now;
         setElapsedTime(elapsedTimeRef.current);
         setBall(ballRef.current); // only for HUD; Three.js reads ballRef every render
+        if (missionModeRef.current && missionRef.current.stasisRemaining > 0) {
+          setMissionUI({ ...missionRef.current });
+        }
       }
     };
     animId = requestAnimationFrame(loop);
@@ -409,6 +478,12 @@ export default function App() {
         trackingMode={handState.trackingMode}
       />
 
+      {missionMode && cosmicEvent && (
+        <div className="bm-cosmic-event" key={cosmicEvent.id} aria-live="polite" role="status">
+          {cosmicEvent.text}
+        </div>
+      )}
+
       {/* Floating Webcam & Dual-Hand Detection Preview */}
       <WebcamOverlay
         presentationMode={presentationMode}
@@ -426,7 +501,11 @@ export default function App() {
       <HUD
         missionMode={missionMode}
         missionState={missionUI}
-        onStartMission={startCosmicMission}
+        onStartMission={() => startCosmicMission(0)}
+        onSelectMissionChapter={(index) => startCosmicMission(index)}
+        completedChapters={completedChapters}
+        onActivateStasis={activateMissionPower}
+        missionChapters={COSMIC_MISSIONS}
         presentationMode={presentationMode}
         level={currentLevel}
         allLevels={LEVELS}
@@ -441,7 +520,7 @@ export default function App() {
         isMuted={isMuted}
         onSelectLevel={handleSelectLevel}
         onRestart={restartLevel}
-        onNextLevel={handleNextLevel}
+        onNextLevel={advanceLevel}
         onToggleSound={handleToggleSound}
         onStartRandomLevel={handleStartRandomLevel}
       />
