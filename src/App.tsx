@@ -118,6 +118,7 @@ export default function App() {
       onStateUpdate: (updatedState) => {
         setHandState({ ...updatedState });
       },
+      onPinchGesture: () => activateMissionPower(),
       onError: (err) => {
         console.warn('Camera error:', err);
       },
@@ -505,6 +506,7 @@ export default function App() {
         onSelectMissionChapter={(index) => startCosmicMission(index)}
         completedChapters={completedChapters}
         onActivateStasis={activateMissionPower}
+        pinchGestureAvailable={handState.trackingMode === 'camera' && handState.isCameraActive && handState.engine === 'mediapipe'}
         missionChapters={COSMIC_MISSIONS}
         presentationMode={presentationMode}
         level={currentLevel}
