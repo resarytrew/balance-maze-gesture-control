@@ -1411,6 +1411,11 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
     let lastRenderTime = 0;
     const headlessRenderInterval = isHeadless ? 1000 / 15 : 0;
     let animId: number;
+    const spaceBackground = new THREE.Color(0x080d1c);
+    const studioBackground = new THREE.Color(0x120b07);
+    const spaceFog = new THREE.FogExp2(0x080d1c, 0.012);
+    const studioFog = new THREE.FogExp2(0x120b07, 0.012);
+    let wasCosmic: boolean | null = null;
 
     const animate = (time: number) => {
       animId = requestAnimationFrame(animate);
@@ -1434,11 +1439,14 @@ export const ThreeLabyrinth: React.FC<ThreeLabyrinthProps> = ({
       }
 
       const cosmic = isCosmicLevel(levelRef.current);
-      tableMesh.visible = !cosmic;
-      spaceBackdrop.visible = cosmic;
-      studioProps.forEach(prop => { prop.visible = !cosmic; });
-      scene.background = new THREE.Color(cosmic ? 0x080d1c : 0x120b07);
-      scene.fog = new THREE.FogExp2(cosmic ? 0x080d1c : 0x120b07, 0.012);
+      if (cosmic !== wasCosmic) {
+        wasCosmic = cosmic;
+        tableMesh.visible = !cosmic;
+        spaceBackdrop.visible = cosmic;
+        studioProps.forEach(prop => { prop.visible = !cosmic; });
+        scene.background = cosmic ? spaceBackground : studioBackground;
+        scene.fog = cosmic ? spaceFog : studioFog;
+      }
 
       // Trigger impact collision sparks
       if (impactSparksRef.current && impactSparksRef.current.key !== lastHandledSparkKey) {
