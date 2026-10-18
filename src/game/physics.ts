@@ -367,12 +367,11 @@ export function stepPhysics(
     // 1. Gravity components along board surface
     // Roll tilts around Z: positive roll tilts +X down
     // Pitch tilts around X: positive pitch lowers +Z (Three.js rotation.x).
+    // The normal contact force drives friction and microscopic surface response.
+    const normalAcceleration = GRAVITY * Math.cos(safeTilt.pitch) * Math.cos(safeTilt.roll);
     const micro = woodSurfaceGradient(newBall.x, newBall.z);
     const gx = GRAVITY * Math.sin(safeTilt.roll) - normalAcceleration * micro.x;
     const gz = GRAVITY * Math.sin(safeTilt.pitch) - normalAcceleration * micro.z;
-
-    // The board's normal force bounds the static / kinetic contact impulse.
-    const normalAcceleration = GRAVITY * Math.cos(safeTilt.pitch) * Math.cos(safeTilt.roll);
     newBall.vx += gx * stepDt;
     newBall.vz += gz * stepDt;
     solveGroundContact(newBall, normalAcceleration, stepDt);
